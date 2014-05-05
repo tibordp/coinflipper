@@ -4,7 +4,7 @@ BIN_NAME := coinflipper
 # Compiler used
 CXX ?= g++
 # Extension of source files used in the project
-SRC_EXT = cpp
+SRC_EXT = cc
 # Path to the source directory, relative to the makefile
 SRC_PATH = .
 # General compiler flags
@@ -20,7 +20,7 @@ DCOMPILE_FLAGS = -D DEBUG
 # Add additional include paths
 INCLUDES = -I $(SRC_PATH)/
 # General linker settings
-LINK_FLAGS = 
+LINK_FLAGS = -lzmq -lprotobuf -lpthread
 # Additional release-specific linker settings
 RLINK_FLAGS = 
 # Additional debug-specific linker settings

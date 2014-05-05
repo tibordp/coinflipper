@@ -1,2 +1,4 @@
 *.pb.cc
 *.pb.h
+build/
+bin/
