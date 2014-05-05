@@ -1,0 +1,12 @@
+package coinflipper;
+
+message coinbatch {
+	required int64 hash = 1;	
+
+	message coinflip {
+	     required uint32 index = 1;
+	     required uint64 flips = 2;
+	}
+
+	repeated coinflip flips = 2;
+}
