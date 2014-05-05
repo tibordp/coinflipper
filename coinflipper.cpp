@@ -18,10 +18,10 @@
 using namespace std;
 
 class kovanec {
-	results& rslt;
+	async_results& results;
 
 public: 
-	kovanec(results& rslt_) : rslt(rslt_) {}
+	kovanec(results& rslt_) : results(rslt_) {}
 
 	void operator()(){
 		mt19937_64 rng;
@@ -60,7 +60,7 @@ public:
 
 			if (!(iteration & 0xffffff))
 			{
-				rslt.push(results);
+				results.push(results);
 			}
 
 			iteration++;
@@ -71,54 +71,61 @@ public:
 int main()
 {
 	zmq::context_t context (1);
+	async_results results;
 
-	bool updating = false;
-	results rslt;
-
-	vector<thread> thrds;
-
-	for (int i = 0; i < thread::hardware_concurrency(); ++i)
-	{
-		thrds.push_back(thread(kovanec(rslt)));
-	}
+	vector<thread> workers;
 
 	auto sender = [&]{
+		// We generate a random ID.
 		uint64_t id = random_device()();
 
 		zmq::socket_t socket (context, ZMQ_PUSH);
 
-		std::cerr << "Connecting to server" << std::endl;
-		socket.connect ("tcp://celovs01.ojdip.net:5555");
+		std::cerr << "Connecting to server (hash: " << hex << id << std::endl;
+		socket.connect ("tcp://www.ojdip.net:5555");
 
 		for (;;)
 		{
-			int j = 0;
-
-			auto results = rslt.get();
-
-			coinflipper::coinbatch cf;
-
-			cf.set_hash(id);
-
-			for (auto &i : results)
 			{
-				if (i == 0) continue;
-				auto d = cf.add_flips();
-				d->set_index(j);
-				d->set_flips(i);
+				int j = 0;
+
+				coinflipper::coinbatch cf;
+
+				cf.set_hash(id);
+
+				int j = 0;
+				for (auto i : results.get())
+				{
+					if (i == 0) continue;
+					auto d = cf.add_flips();
+					d->set_index(j);
+					d->set_flips(i);
+				}
+
+				zmq::message_t request (cf.ByteSize());
+				cf.SerializeToArray(request.data (), cf.ByteSize());
+				socket.send (request);
+
+				results.pop();
 			}
-
-			zmq::message_t request (cf.ByteSize());
-			cf.SerializeToArray(request.data (), cf.ByteSize());
-
-			socket.send (request);
 
 			this_thread::sleep_for(chrono::seconds(1));
 		}
 	};
 
-	thrds.push_back(thread(sender));
+	// We create many workers.
 
+	for (int i = 0; i < thread::hardware_concurrency(); ++i)
+	{
+		workers.push_back(
+			thread(kovanec(results))
+		);
+	}
+
+	// We can have multiple senders but one suffices.
+	thread(sender).join();
+
+	// We wait for workers to terminate.
 	for (auto & i : thrds)
 	{
 		i.join();

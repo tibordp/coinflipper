@@ -17,35 +17,55 @@
 
 using namespace std;
 
-void listen() {
-	try {
+class socket_man {
+	zmq::context_t& context;
+	async_results& results;
+
+	socket_man(zmq::context_t& context_, 
+			   results& results_) : 
+		context(context_),
+		results(results_) {}
+
+	void operator()() {
+		try {
 			zmq::socket_t socket (context, ZMQ_PULL);
 			socket.bind ("tcp://*:5555");
 
 			while (true) {
 				zmq::message_t update;
 
-        	//  Wait for next request from client
+        		//  Wait for next request from client
 				socket.recv (&update);
 
 				coinflipper::coinbatch cf;
 				cf.ParseFromArray(update.data(), update.size());
 
-				cout << cf.hash() << endl;
+				result_array work;
+				for (auto& i : work) i = 0;
+
+				for (auto&i : cf.coinflip())
+				{
+					work[i.index()] = i.flips();
+				}
+
+				results.push(work);
+
+				cout << "Received work (id: " << hex << cf.hash() << ")" << endl;
 			}
-	} catch (...)
-	{	
+		} catch (...)
+		{	
 			return;		
+		}
 	}
-}
+};
 
 int main(){
 	zmq::context_t context (1);
+	async_results results;
 
-	bool updating = false;
-	results rslt;
+	vector<thread> threads;
 
-	vector<thread> thrds;
+	threads.push_back(thread(listen));
 
-	thrds.push_back(thread(listen));
+	for (auto &i : threads) i.join();
 }
