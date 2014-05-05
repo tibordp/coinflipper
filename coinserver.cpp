@@ -17,17 +17,19 @@
 
 using namespace std;
 
-class socket_man {
+class socket_man 
+{
 	zmq::context_t& context;
 	async_results& results;
 
 	socket_man(zmq::context_t& context_, 
-			   results& results_) : 
-		context(context_),
-		results(results_) {}
+		async_results& results_) : 
+	context(context_),
+	async_results(results_) {};
 
 	void operator()() {
-		try {
+		try 
+		{
 			zmq::socket_t socket (context, ZMQ_PULL);
 			socket.bind ("tcp://*:5555");
 
@@ -41,7 +43,9 @@ class socket_man {
 				cf.ParseFromArray(update.data(), update.size());
 
 				result_array work;
-				for (auto& i : work) i = 0;
+
+				for (auto& i : work) 
+					i = 0;
 
 				for (auto&i : cf.coinflip())
 				{
@@ -52,7 +56,8 @@ class socket_man {
 
 				cout << "Received work (id: " << hex << cf.hash() << ")" << endl;
 			}
-		} catch (...)
+		} 
+		catch (...)
 		{	
 			return;		
 		}
