@@ -10,8 +10,8 @@
 #include <queue>
 #include <condition_variable>
 
-#include "pb.pb.h"
-#include "coinflip.hpp"
+#include "coinflipper.pb.h"
+#include "coinflipper.hpp"
 
 #include <zmq.hpp>
 

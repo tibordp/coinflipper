@@ -11,7 +11,7 @@
 #include <condition_variable>
 
 #include "coinflipper.pb.h"
-#include "coinfliper.hpp"
+#include "coinflipper.hpp"
 
 #include <zmq.hpp>
 
