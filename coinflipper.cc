@@ -41,42 +41,36 @@ public:
 		result_array current;
 		current.fill(0);
 
-		unsigned remaining = 0;
+		RngInt cur_bits;
 		unsigned count = 0;
 
-		RngInt cur_bits;
+		bool prev = true;
+		static const uint32_t iter_num = 0xffffff;
 
-		bool previous = true;
-
-		for (uint64_t iteration = 0 ;; ++iteration)
+		for (uint32_t iteration = iter_num;; --iteration)
 		{
-			if (!remaining)
+			cur_bits = rng ();
+
+			for (int i = sizeof (RngInt); i--;)
 			{
-				cur_bits = rng();
-				remaining = sizeof(RngInt);
+				bool t = (cur_bits & ((RngInt) 1 << i)) == 0;
+				if (t == prev)
+					++count;
+				else
+				{
+					prev = t;
+					++current[count];
+					count = 0;
+				}
 			}
 
-			if ((cur_bits & 0x1) ^ previous)
+			/* Each 0xffffff * 64 flips, we send an update */
+
+			if (iteration == 0)
 			{
-				++current[count];
-				count = 0;
-			}
-			else 
-				++count;
-
-			previous = cur_bits & 0x1;
-
-			--remaining;
-			cur_bits >>= 1;
-
-			/* Each 0xffffff flips, we send an update */
-
-			if (iteration == 0xffffff)
-			{
-				results.push(current, iteration);
+				results.push(current, iter_num * sizeof (RngInt));
+				iteration = iter_num;
 				current.fill(0);
-
-				iteration = 0;
 			}
 		}
 	}
@@ -372,7 +366,7 @@ int coin_status(char* server_address) {
 
 	array<string, 128> values;
 
-	for (int i = 0; i < 127; ++i)
+	for (int i = 0; i < 128; ++i)
 	{
 		values[i] = commify(results[i]);
 		max[i / 32] = ::max(max[i / 32], values[i].size());
