@@ -14,7 +14,7 @@ PROTOBUF_COMPILER = protoc
 # Protocol Buffer flags
 PROTOBUF_FLAGS = --cpp_out=$(SRC_PATH)
 # Additional release-specific flags
-RCOMPILE_FLAGS = -D NDEBUG
+RCOMPILE_FLAGS = -D NDEBUG -O3
 # Additional debug-specific flags
 DCOMPILE_FLAGS = -D DEBUG
 # Add additional include paths
