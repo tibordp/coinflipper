@@ -86,11 +86,14 @@ class coin_sender
 	zmq::context_t& context;
 	async_results& results;
 
+	string server_address;
 public:
 	coin_sender(zmq::context_t& context_, 
-		async_results& results_) : 
+		async_results& results_, 
+		const string& server_address_) : 
 	context(context_),
-	results(results_) {};
+	results(results_),
+	server_address(server_address_) {};
 
 	void operator()() {
 		try 
@@ -98,10 +101,17 @@ public:
 			uint64_t id = random_device()();
 			
 			cerr << "Connecting to server (my hash is: " << hex << id << ") " << endl;
-		
+
 			zmq::socket_t socket (context, ZMQ_PUSH);
 			socket.setsockopt(ZMQ_IPV6, &IPV6, sizeof(int));
-			socket.connect("tcp://[::1]:5555");
+
+			string url("tcp://");
+			url += server_address;
+			url += ":5555";
+			
+			cout << "\"" << url << "\"";
+
+			socket.connect(url.c_str());
 
 			for (;;)
 			{
@@ -129,7 +139,7 @@ public:
 	}
 };
 
-int coin_flipper()
+int coin_flipper(char* server_address)
 {
 	zmq::context_t context (1);
 	async_results results;
@@ -141,7 +151,7 @@ int coin_flipper()
 		workers.push_back(thread(coin<mt19937_64>(results)));
 
 	// We can have multiple senders but one suffices.
-	thread(coin_sender(context, results)).join();
+	thread(coin_sender(context, results, server_address)).join();
 
 	// We wait for workers to terminate.
 	for (auto & i : workers)
@@ -318,23 +328,28 @@ int coin_server() {
 
 template<class T>
 string commify(T value){
-    struct punct: public std::numpunct<char>{
-    protected:
-        virtual char do_thousands_sep() const{return ',';}
-        virtual std::string do_grouping() const{return "\03";}
-    };
-    std::stringstream ss;
-    ss.imbue({std::locale(), new punct});
-    ss << std::setprecision(0) << std::fixed << value;
-    return ss.str();
+	struct punct: public std::numpunct<char>{
+	protected:
+		virtual char do_thousands_sep() const{return ',';}
+		virtual std::string do_grouping() const{return "\03";}
+	};
+	std::stringstream ss;
+	ss.imbue({std::locale(), new punct});
+	ss << std::setprecision(0) << std::fixed << value;
+	return ss.str();
 }
 
-int coin_status() {
+int coin_status(char* server_address) {
 	zmq::context_t context (1);
 
 	zmq::socket_t socket (context, ZMQ_REQ);
 	socket.setsockopt(ZMQ_IPV6, &IPV6, sizeof(int));
-	socket.connect("tcp://[::1]:5556");
+
+	string url("tcp://");
+		url += server_address;
+		url += ":5556";
+
+	socket.connect(url.c_str());
 	
 	// We send an "empty" requests - just ping.
 	zmq::message_t request (0);
@@ -368,18 +383,17 @@ int main(int argc, char* argv[])
 {
 	switch (argc) 
 	{
-		case 0:
-		case 1:
-		return coin_flipper();
-
+		case 3:
+		if (string(argv[1]) == "flipper")
+			return coin_flipper(argv[2]);
+		if (string(argv[1]) == "status")
+			return coin_status(argv[2]);
 		case 2: 
 		if (string(argv[1]) == "server")
 			return coin_server();
-		if (string(argv[1]) == "status")
-			return coin_status();
-		
+	
 		default:
-		cerr << "Usage: coinflipper [server]" << endl;
+		cerr << "Usage: coinflipper [flipper|server|status] <server>" << endl;
 		return 1;
 	}
 }
