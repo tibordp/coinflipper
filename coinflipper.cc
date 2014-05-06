@@ -380,10 +380,10 @@ int coin_status(char* server_address) {
 
 	for (int i = 0; i < 32; ++i)
 	{
-		cout << dec << setw(3) << i + 0  << ": " << setw(max[1]) << values[i + 0 ] << "   " <<
-					   setw(3) << i + 32 << ": " << setw(max[2]) << values[i + 32] << "   " <<
-					   setw(3) << i + 64 << ": " << setw(max[3]) << values[i + 64] << "   " <<
-					   setw(3) << i + 96 << ": " << setw(max[4]) << values[i + 96] << endl;
+		cout << dec << setw(3) << i + 0  << ": " << setw(max[0]) << values[i + 0 ] << "   " <<
+					   setw(3) << i + 32 << ": " << setw(max[1]) << values[i + 32] << "   " <<
+					   setw(3) << i + 64 << ": " << setw(max[2]) << values[i + 64] << "   " <<
+					   setw(3) << i + 96 << ": " << setw(max[3]) << values[i + 96] << endl;
 	}
 
 	return 0;
