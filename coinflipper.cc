@@ -45,9 +45,9 @@ public:
 		unsigned count = 0;
 
 		bool prev = true;
-		static const uint32_t iter_num = -0xffffff;
+		static const uint32_t iter_num = 0xffffff;
 
-		for (uint32_t iteration = iter_num ;; ++iteration)
+		for (uint32_t iteration = iter_num;; --iteration)
 		{
 			cur_bits = rng ();
 
