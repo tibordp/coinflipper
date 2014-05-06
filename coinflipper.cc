@@ -366,7 +366,7 @@ int coin_status(char* server_address) {
 
 	array<string, 128> values;
 
-	for (int i = 0; i < 127; ++i)
+	for (int i = 0; i < 128; ++i)
 	{
 		values[i] = commify(results[i]);
 		max[i / 32] = ::max(max[i / 32], values[i].size());
