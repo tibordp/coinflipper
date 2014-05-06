@@ -68,7 +68,7 @@ public:
 
 			if (iteration == 0)
 			{
-				results.push(current, iteration);
+				results.push(current, iteration * sizeof (RngInt));
 				current.fill(0);
 				iteration = iter_num;
 			}
