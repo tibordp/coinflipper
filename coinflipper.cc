@@ -19,7 +19,8 @@
 using namespace std;
 
 // Because ZMQ bindings are daft and require pointers
-int IPV6 = 1;
+int P0 = 0;
+int P1 = 1;
 
 template<typename Rng>
 class coin {
@@ -103,7 +104,7 @@ public:
 			cerr << "Connecting to server (my hash is: " << hex << id << ") " << endl;
 
 			zmq::socket_t socket (context, ZMQ_PUSH);
-			socket.setsockopt(ZMQ_IPV6, &IPV6, sizeof(int));
+			socket.setsockopt(ZMQ_IPV4ONLY, &P0, sizeof(int));
 
 			string url("tcp://");
 			url += server_address;
@@ -192,7 +193,7 @@ public:
 		try 
 		{
 			zmq::socket_t socket (context, ZMQ_PULL);
-			socket.setsockopt(ZMQ_IPV6, &IPV6, sizeof(int));
+			socket.setsockopt(ZMQ_IPV4ONLY, &P0, sizeof(int));
 			socket.bind ("tcp://*:5555");
 
 			while (true) {
@@ -271,9 +272,8 @@ public:
 		try 
 		{
 			zmq::socket_t socket (context, ZMQ_REP);
-			
-			int ipv6 = 1;
-			socket.setsockopt(ZMQ_IPV6, &ipv6, sizeof(int));
+		
+			socket.setsockopt(ZMQ_IPV4ONLY, &P0, sizeof(int));
 
 			socket.bind ("tcp://*:5556");
 
@@ -343,7 +343,7 @@ int coin_status(char* server_address) {
 	zmq::context_t context (1);
 
 	zmq::socket_t socket (context, ZMQ_REQ);
-	socket.setsockopt(ZMQ_IPV6, &IPV6, sizeof(int));
+	socket.setsockopt(ZMQ_IPV4ONLY, &P0, sizeof(int));
 
 	string url("tcp://");
 		url += server_address;
