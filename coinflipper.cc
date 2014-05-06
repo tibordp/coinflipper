@@ -18,65 +18,71 @@
 
 using namespace std;
 
-class kovanec {
+template<typename Rng>
+class coin {
 	async_results& results;
 
 public: 
-	kovanec(async_results& rslt_) : results(rslt_) {}
+	coin(async_results& rslt_) : results(rslt_) {}
 
 	void operator()(){
-		mt19937_64 rng;
+		Rng rng;
+
+		/* We can use random number generators with varying output 
+		   integer size */
+
+		using RngInt = decltype(rng());
 		rng.seed(random_device()());
 
 		result_array current;
-		for (auto& i : current) i = 0;
+		current.fill(0);
 
-			unsigned short remaining = 0;
-		unsigned short count = 0;
-		uint64_t cur_bits;
-		uint64_t iteration = 1;
+		unsigned remaining = 0;
+		unsigned count = 0;
+
+		RngInt cur_bits;
+
 		bool previous;
 
-		for (;;)
+		for (uint64_t iteration = 1 ;; ++iteration)
 		{
 			if (!remaining)
 			{
 				cur_bits = rng();
-				remaining = 64;
+				remaining = sizeof(RngInt);
 			}
 
 			if (!((cur_bits & 0x1) ^ previous))
-			{
 				++count;
-				previous = cur_bits & 0x1;
-			}
 			else
 			{
-				current[count] += 1;
+				++current[count];
 				count = 0;
 			}
+
+			previous = cur_bits & 0x1;
 
 			--remaining;
 			cur_bits >>= 1;
 
+			/* Each 0xffffff flips, we send an update */
+
 			if (!(iteration & 0xffffff))
 			{
 				results.push(current);
+				current.fill(0);
 			}
-
-			iteration++;
 		}
 	}
 };
 
-class socket_man 
+class coin_sender
 {
 	zmq::context_t& context;
 	async_results& results;
 
 public:
-
-	socket_man(zmq::context_t& context_, 
+	coin_sender(zmq::context_t& context_, 
 		async_results& results_) : 
 	context(context_),
 	results(results_) {};
@@ -84,59 +90,17 @@ public:
 	void operator()() {
 		try 
 		{
-			zmq::socket_t socket (context, ZMQ_PULL);
-			socket.bind ("tcp://*:5555");
+			uint64_t id = random_device()();
 
-			while (true) {
-				zmq::message_t update;
+			zmq::socket_t socket (context, ZMQ_PUSH);
+			cerr << "Connecting to server (hash: " << hex << id << ") " << endl;
+			
+			int ipv6 = 1;
+			socket.setsockopt(ZMQ_IPV6, &ipv6, sizeof(int));
 
-        		//  Wait for next request from client
-				socket.recv (&update);
+			socket.connect("tcp://[::1]:5555");
 
-				coinflipper::coinbatch cf;
-				cf.ParseFromArray(update.data(), update.size());
-
-				result_array work;
-
-				for (auto& i : work) 
-					i = 0;
-
-				for (const auto& i : cf.flips())
-				{
-					work[i.index()] = i.flips();
-				}
-
-				results.push(work);
-
-				cout << "Received work (id: " << hex << cf.hash() << ")" << endl;
-			}
-		} 
-		catch (...)
-		{	
-			return;		
-		}
-	}
-};
-
-int coin_flipper()
-{
-	zmq::context_t context (1);
-	async_results results;
-
-	vector<thread> workers;
-
-	auto sender = [&]{
-		// We generate a random ID.
-		uint64_t id = random_device()();
-
-		zmq::socket_t socket (context, ZMQ_PUSH);
-
-		cerr << "Connecting to server (hash: " << hex << id << ") " << endl;
-
-		socket.connect("tcp://www.ojdip.net:5555");
-
-		for (;;)
-		{
+			for (;;)
 			{
 				coinflipper::coinbatch cf;
 
@@ -156,23 +120,30 @@ int coin_flipper()
 				socket.send (request);
 
 				results.pop();
-			}
 
-			this_thread::sleep_for(chrono::seconds(1));
+				this_thread::sleep_for(chrono::seconds(1));
+			}
+		} 
+		catch (...)
+		{	
+			return;		
 		}
-	};
+	}
+};
+
+int coin_flipper()
+{
+	zmq::context_t context (1);
+	async_results results;
+
+	vector<thread> workers;
 
 	// We create many workers.
-
 	for (unsigned i = 0; i < thread::hardware_concurrency(); ++i)
-	{
-		workers.push_back(
-			thread(kovanec(results))
-			);
-	}
+		workers.push_back(thread(coin<mt19937_64>(results)));
 
 	// We can have multiple senders but one suffices.
-	thread(sender).join();
+	thread(coin_sender(context, results)).join();
 
 	// We wait for workers to terminate.
 	for (auto & i : workers)
@@ -183,13 +154,69 @@ int coin_flipper()
 	return 0;
 }
 
+/* ------------------------------------------------------------------------- */
+
+class coin_listener 
+{
+	zmq::context_t& context;
+	async_results& results;
+
+public:
+
+	coin_listener(zmq::context_t& context_, 
+		async_results& results_) : 
+	context(context_),
+	results(results_) {};
+
+	void insert_work(const coinflipper::coinbatch& cf) {
+		result_array work;
+
+		for (auto& i : work) 
+			i = 0;
+
+		for (const auto& i : cf.flips())
+		{
+			work[i.index()] = i.flips();
+		}
+
+		results.push(work);
+	}
+
+	void operator()() {
+		try 
+		{
+			zmq::socket_t socket (context, ZMQ_PULL);
+			
+			int ipv6 = 1;
+			socket.setsockopt(ZMQ_IPV6, &ipv6, sizeof(int));
+
+			socket.bind ("tcp://*:5555");
+
+			while (true) {
+				zmq::message_t update;
+				socket.recv (&update);
+
+				coinflipper::coinbatch cf;
+				cf.ParseFromArray(update.data(), update.size());
+
+				insert_work(cf);
+				cout << "Received work (id: " << hex << cf.hash() << ")" << endl;
+			}
+		} 
+		catch (...)
+		{	
+			return;		
+		}
+	}
+};
+
 int coin_server() {
 	zmq::context_t context (1);
 	async_results results;
 
 	vector<thread> threads;
 
-	threads.push_back(thread(socket_man(
+	threads.push_back(thread(coin_listener(
 		context, results)));
 
 	for (auto &i : threads) 
@@ -198,15 +225,17 @@ int coin_server() {
 	return 0;
 }
 
+/* ------------------------------------------------------------------------- */
+
 int main(int argc, char* argv[])
 {
 	switch (argc) {
 		case 0:
 		case 1:
-			return coin_flipper();
+		return coin_flipper();
 		case 2: 
-			if (string(argv[1]) == "server")
-				return coin_server();
+		if (string(argv[1]) == "server")
+			return coin_server();
 		default:
 		cerr << "Usage: coinflipper [server]" << endl;
 		return 1;
