@@ -41,42 +41,36 @@ public:
 		result_array current;
 		current.fill(0);
 
-		unsigned remaining = 0;
+		RngInt cur_bits;
 		unsigned count = 0;
 
-		RngInt cur_bits;
+		bool prev = true;
+		static const uint32_t iter_num = -0xffffff;
 
-		bool previous = true;
-
-		for (uint64_t iteration = 0 ;; ++iteration)
+		for (uint32_t iteration = iter_num ;; ++iteration)
 		{
-			if (!remaining)
+			cur_bits = rng ();
+
+			for (int i = sizeof (RngInt); i--;)
 			{
-				cur_bits = rng();
-				remaining = sizeof(RngInt);
+				bool t = (cur_bits & ((RngInt) 1 << i)) == 0;
+				if (t == prev)
+					++count;
+				else
+				{
+					prev = t;
+					++current[count];
+					count = 0;
+				}
 			}
 
-			if ((cur_bits & 0x1) ^ previous)
-			{
-				++current[count];
-				count = 0;
-			}
-			else 
-				++count;
+			/* Each 0xffffff * 64 flips, we send an update */
 
-			previous = cur_bits & 0x1;
-
-			--remaining;
-			cur_bits >>= 1;
-
-			/* Each 0xffffff flips, we send an update */
-
-			if (iteration == 0xffffff)
+			if (iteration == 0)
 			{
 				results.push(current, iteration);
 				current.fill(0);
-
-				iteration = 0;
+				iteration = iter_num;
 			}
 		}
 	}
