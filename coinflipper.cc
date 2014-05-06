@@ -368,10 +368,22 @@ int coin_status(char* server_address) {
 	cout << "Total coins flipped:\t" << dec << commify(cf.total_flips()) << endl;
 	cout << "Coins per second:\t" << dec << commify(cf.flips_per_second()) << endl << endl;
 
+	size_t max = 0;
+
+	array<string, 127> values;
+
 	for (int i = 0; i < 32; ++i)
 	{
-		cout << dec << i << ": \t" << commify(results[i]) << "\t\t"
-		<< (i + 32) << ": \t" << commify(results[i + 32]) << endl;
+		values[i] = commify(results[i]);
+		max = ::max(max, values[i].size());
+	}
+
+	for (int i = 0; i < 32; ++i)
+	{
+		cout << dec << setw(3) << i + 0  << ": " << setw(max) << results[i + 0 ] << "  " <<
+					   setw(3) << i + 32 << ": " << setw(max) << results[i + 32] << "  " <<
+					   setw(3) << i + 64 << ": " << setw(max) << results[i + 64] << "  " <<
+					   setw(3) << i + 96 << ": " << setw(max) << results[i + 96] << endl;
 	}
 
 	return 0;
