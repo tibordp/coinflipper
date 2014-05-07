@@ -16,7 +16,7 @@ PROTOBUF_FLAGS = --cpp_out=$(SRC_PATH)
 # Additional release-specific flags
 RCOMPILE_FLAGS = -D NDEBUG -O3
 # Additional debug-specific flags
-DCOMPILE_FLAGS = -D DEBUG
+DCOMPILE_FLAGS = -D DEBUG -Wpedantic
 # Add additional include paths
 INCLUDES = -I $(SRC_PATH)/
 # General linker settings

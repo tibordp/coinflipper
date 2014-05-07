@@ -1,16 +1,19 @@
 #include <mutex>
 #include <utility>
 #include <array>
+#include <sstream>
+#include <iomanip>
 
-class result_array : public std::array<uint64_t, 128>
+/* 
+	result_array can be converted to any appropriate Protocol Buffers message that
+	implements flips(), add_flips()
+*/
+
+class result_array : public std::array<uint64_t, 128> 
 {
-	/* 
-		result_array can be converted to any appropriate Protocol Buffers message that
-		implements flips(), add_flips()
-	*/
-public:
 
-	template <typename T>
+public:
+	template <typename T> 
 	void insert_to_pb(T& pb_message) const
 	{
 		int j = 0;
@@ -24,8 +27,8 @@ public:
 			++j;
 		}
 	}
-	
-	template <typename T>
+
+	template <typename T> 
 	static result_array create_from_pb(T& pb_message)
 	{
 		result_array result;
@@ -54,7 +57,7 @@ public:
 		total = 0;
 	}
 
-	void push(result_array& val, uint64_t count) 
+	void push(const result_array& val, uint64_t count) 
 	{
 		std::lock_guard<std::mutex> lg(mtx);
 		total += count;
@@ -78,3 +81,22 @@ public:
 		total = 0;
 	}
 };
+
+
+// This function formats the number with , as a thousands separator
+
+template<typename T> 
+std::string commify(T value) 
+{
+	struct punct : public std::numpunct<char>
+	{
+	protected:
+		virtual char do_thousands_sep() const { return ','; }
+		virtual std::string do_grouping() const { return "\03"; }
+	};
+
+	std::stringstream ss;
+	ss.imbue({ std::locale(), new punct });
+	ss << std::setprecision(0) << std::fixed << value;
+	return ss.str();
+}
