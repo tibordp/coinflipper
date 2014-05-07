@@ -3,7 +3,7 @@ Coin Flipper
 
 The latest in coin-flipping technology, this program will flip any desired amount of coins at once, using a random generator of your most refined choice.
 
-The purpose of the project is to benchmark and verify uniformnmess of random number generators, while providing an easy-to-use server-client model, allowing you to flip coins using thousands of CPU-saturated nodes at once. Fun for whole family!
+The purpose of the project is to benchmark and verify uniformnmess of random number generators, while providing an easy-to-use server-client model, allowing you to flip coins using any number of CPU-saturated nodes at once. Fun for whole family!
 
 It does so by counting occurences of coin flip streaks of any length (between 1 and 128). The client nodes generate coin flips and send their statistics to the server.
 
