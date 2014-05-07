@@ -9,6 +9,7 @@
 #include <chrono>
 #include <mutex>
 #include <queue>
+#include <algorithm>
 #include <condition_variable>
 
 #include "coinflipper.h"
@@ -22,17 +23,22 @@ using namespace std;
 int P0 = 0;
 int P1 = 1;
 
+/*
+	This class does the actual coin flipping. It seeds the RNG from 
+	a random device, such as /dev/random, then it simply counts streaks.
+*/
+
 template<typename Rng>
 class coin {
 	async_results& results;
 
-public: 
+public:
 	coin(async_results& rslt_) : results(rslt_) {}
 
 	void operator()(){
 		Rng rng;
 
-		/* We can use random number generators with varying output 
+		/* We can use random number generators with varying output
 		   integer size */
 
 		using RngInt = decltype(rng());
@@ -49,11 +55,11 @@ public:
 
 		for (uint32_t iteration = iter_num;; --iteration)
 		{
-			cur_bits = rng ();
+			cur_bits = rng();
 
 			for (int i = sizeof (RngInt); i--;)
 			{
-				bool t = (cur_bits & ((RngInt) 1 << i)) == 0;
+				bool t = (cur_bits & ((RngInt)1 << i)) == 0;
 				if (t == prev)
 					++count;
 				else
@@ -76,6 +82,11 @@ public:
 	}
 };
 
+/*
+	This class connect to the server and periodically sends the accumulated
+	statistics from all threads.
+*/
+
 class coin_sender
 {
 	zmq::context_t& context;
@@ -83,60 +94,64 @@ class coin_sender
 
 	string server_address;
 public:
-	coin_sender(zmq::context_t& context_, 
-		async_results& results_, 
-		const string& server_address_) : 
-	context(context_),
-	results(results_),
-	server_address(server_address_) {};
+	coin_sender(zmq::context_t& context_,
+		async_results& results_,
+		const string& server_address_) :
+		context(context_),
+		results(results_),
+		server_address(server_address_) {};
 
 	void operator()() {
-		try 
+		try
 		{
-			uint64_t id = random_device()();
-			
-			cerr << "Connecting to server (my hash is: " << hex << id << ") " << endl;
+			uint64_t hash = random_device()();
 
-			zmq::socket_t socket (context, ZMQ_PUSH);
-			socket.setsockopt(ZMQ_IPV4ONLY, &P0, sizeof(int));
+			cerr << "Connecting to server (my hash is: " << hex << hash << ") " << endl;
+
+			zmq::socket_t socket(context, ZMQ_PUSH);
+#ifdef ZMQ_IPV6
+			socket.setsockopt(ZMQ_IPV6, &P1, sizeof(P1));
+#else
+			socket.setsockopt(ZMQ_IPV4ONLY, &P0, sizeof(P0));
+#endif
+
+			/* We craft 0MQ URL from the server address */
 
 			string url("tcp://");
 			url += server_address;
 			url += ":5555";
-			
-			cout << "\"" << url << "\"";
 
 			socket.connect(url.c_str());
 
 			for (;;)
 			{
-				coinflipper::coinbatch cf;
-
 				auto rslt = results.get();
 
-				cf.set_hash(id);
+				coinflipper::coinbatch cf;
+
+				cf.set_hash(hash);
 				cf.set_total_flips(rslt.second);
 				rslt.first.insert_to_pb(cf);
 
-				zmq::message_t request (cf.ByteSize());
-				cf.SerializeToArray(request.data (), cf.ByteSize());
-				socket.send (request);
+				zmq::message_t request(cf.ByteSize());
+				cf.SerializeToArray(request.data(), cf.ByteSize());
+				socket.send(request);
 
 				results.pop();
 
 				this_thread::sleep_for(chrono::seconds(1));
 			}
-		} 
+		}
 		catch (...)
-		{	
-			return;		
+		{
+			return;
 		}
 	}
 };
 
-int coin_flipper(char* server_address)
+int coin_flipper(const string& server_address)
 {
-	zmq::context_t context (1);
+	zmq::context_t context(1);
 	async_results results;
 
 	vector<thread> workers;
@@ -159,66 +174,65 @@ int coin_flipper(char* server_address)
 
 /* ------------------------------------------------------------------------- */
 
-class coin_listener_workers 
+/*
+	This class listens for client connections that send coinflip updates.
+*/
+
+class coin_listener_workers
 {
 	zmq::context_t& context;
 	async_results& results;
 
 public:
 
-	coin_listener_workers(zmq::context_t& context_, 
-		async_results& results_) : 
-	context(context_),
-	results(results_) {};
-
-	void insert_work(const coinflipper::coinbatch& cf) {
-		result_array work;
-		work.fill(0);
-
-		for (const auto& i : cf.flips())
-		{
-			work[i.index()] = i.flips();
-		}
-
-		results.push(work, cf.total_flips());
-	}
+	coin_listener_workers(zmq::context_t& context_,
+		async_results& results_) :
+		context(context_),
+		results(results_) {};
 
 	void operator()() {
-		try 
+		try
 		{
-			zmq::socket_t socket (context, ZMQ_PULL);
-			socket.setsockopt(ZMQ_IPV4ONLY, &P0, sizeof(int));
-			socket.bind ("tcp://*:5555");
+			zmq::socket_t socket(context, ZMQ_PULL);
+#ifdef ZMQ_IPV6
+			socket.setsockopt(ZMQ_IPV6, &P1, sizeof(P1));
+#else
+			socket.setsockopt(ZMQ_IPV4ONLY, &P0, sizeof(P0));
+#endif
+			socket.bind("tcp://*:5555");
 
 			while (true) {
 				zmq::message_t update;
-				socket.recv (&update);
+				socket.recv(&update);
 
 				coinflipper::coinbatch cf;
 				cf.ParseFromArray(update.data(), update.size());
 
-				insert_work(cf);
-				// cout << "Received work (id: " << hex << cf.hash() << ")" << endl;
+				results.push(result_array::create_from_pb(cf), cf.total_flips());
 			}
-		} 
+		}
 		catch (...)
-		{	
-			return;		
+		{
+			return;
 		}
 	}
 };
 
+/*
+	This class implements a thread that periodically computes the current
+	coinflip rate.
+*/
 
 class coin_listener_timer
 {
 	async_results& results;
 	double& coins_per_second;
-	
+
 	decltype(chrono::high_resolution_clock::now()) previous_time;
 	uint64_t previous_count;
 public:
-	coin_listener_timer(async_results& results_, double& coins_per_second_) : 
-	results(results_), coins_per_second(coins_per_second_) {};
+	coin_listener_timer(async_results& results_, double& coins_per_second_) :
+		results(results_), coins_per_second(coins_per_second_) {};
 
 	void operator()() {
 		for (;;)
@@ -230,12 +244,14 @@ public:
 			auto flip_delta = rslt.second - previous_count;
 			auto time_delta = high_resolution_clock::now() - previous_time;
 
-			auto tt = duration_cast<nanoseconds>(time_delta);
-			
-			coins_per_second = flip_delta / ((double)tt.count() / 1000000000);
+			auto tt = duration_cast<microseconds>(time_delta);
+			coins_per_second = flip_delta / ((double)tt.count() / 1000000);
 
 			previous_count += flip_delta;
 			previous_time += time_delta;
+
+			/* We choose a larger default time interval so that we don't sample
+			   in a single update interval. */
 
 			this_thread::sleep_for(seconds(5));
 		}
@@ -247,7 +263,11 @@ public:
 	}
 };
 
-class coin_listener_clients 
+/*
+	This class listens for client connections that request status updates.
+*/
+
+class coin_listener_clients
 {
 	zmq::context_t& context;
 	async_results& results;
@@ -255,50 +275,54 @@ class coin_listener_clients
 
 public:
 
-	coin_listener_clients(zmq::context_t& context_, 
+	coin_listener_clients(zmq::context_t& context_,
 		async_results& results_,
-		double& coins_per_second_) : 
-	context(context_),
-	results(results_),
-	coins_per_second(coins_per_second_) {};
+		double& coins_per_second_) :
+		context(context_),
+		results(results_),
+		coins_per_second(coins_per_second_) {};
 
 	void operator()() {
-		try 
+		try
 		{
-			zmq::socket_t socket (context, ZMQ_REP);
-		
-			socket.setsockopt(ZMQ_IPV4ONLY, &P0, sizeof(int));
+			zmq::socket_t socket(context, ZMQ_REP);
 
-			socket.bind ("tcp://*:5556");
+			#ifdef ZMQ_IPV6
+			socket.setsockopt(ZMQ_IPV6, &P1, sizeof(P1));
+			#else
+			socket.setsockopt(ZMQ_IPV4ONLY, &P0, sizeof(P0));
+			#endif
+
+			socket.bind("tcp://*:5556");
 
 			while (true) {
 				zmq::message_t update;
-				socket.recv (&update);
+				socket.recv(&update);
 
 				coinflipper::coinstatus cf;
 				auto rslt = results.get();
-				
+
 				cf.set_total_flips(rslt.second);
 				cf.set_flips_per_second(coins_per_second);
 
 				rslt.first.insert_to_pb(cf);
 
-				zmq::message_t request (cf.ByteSize());
-				cf.SerializeToArray(request.data (), cf.ByteSize());
-				
-				socket.send (request);
+				zmq::message_t request(cf.ByteSize());
+				cf.SerializeToArray(request.data(), cf.ByteSize());
+
+				socket.send(request);
 			}
-		} 
+		}
 		catch (...)
-		{	
-			return;		
+		{
+			return;
 		}
 	}
 };
 
 
 int coin_server() {
-	zmq::context_t context (1);
+	zmq::context_t context(1);
 	async_results results;
 
 	vector<thread> threads;
@@ -309,7 +333,7 @@ int coin_server() {
 	threads.push_back(thread(coin_listener_workers(context, results)));
 	threads.push_back(thread(coin_listener_clients(context, results, cps)));
 
-	for (auto &i : threads) 
+	for (auto &i : threads)
 		i.join();
 
 	return 0;
@@ -320,64 +344,74 @@ int coin_server() {
 #include <sstream>
 #include <iomanip>
 
+// This function formats the number with , as a thousands separator
+
 template<class T>
 string commify(T value){
-	struct punct: public std::numpunct<char>{
+	struct punct : public std::numpunct<char>{
 	protected:
-		virtual char do_thousands_sep() const{return ',';}
-		virtual std::string do_grouping() const{return "\03";}
+		virtual char do_thousands_sep() const{ return ','; }
+		virtual std::string do_grouping() const{ return "\03"; }
 	};
 	std::stringstream ss;
-	ss.imbue({std::locale(), new punct});
+	ss.imbue({ std::locale(), new punct });
 	ss << std::setprecision(0) << std::fixed << value;
 	return ss.str();
 }
 
-int coin_status(char* server_address) {
-	zmq::context_t context (1);
+/*
+	This function synchronously requests a status update from the server.
+*/
 
-	zmq::socket_t socket (context, ZMQ_REQ);
-	socket.setsockopt(ZMQ_IPV4ONLY, &P0, sizeof(int));
+int coin_status(const string& server_address) {
+	zmq::context_t context(1);
+
+	zmq::socket_t socket(context, ZMQ_REQ);
+#ifdef ZMQ_IPV6
+	socket.setsockopt(ZMQ_IPV6, &P1, sizeof(P1));
+#else
+	socket.setsockopt(ZMQ_IPV4ONLY, &P0, sizeof(P0));
+#endif
 
 	string url("tcp://");
-		url += server_address;
-		url += ":5556";
+	url += server_address;
+	url += ":5556";
 
 	socket.connect(url.c_str());
-	
-	// We send an "empty" requests - just ping.
-	zmq::message_t request (0);
-	socket.send (request);
-	
+
+	// We send an "empty" request - just a ping.
+	zmq::message_t request(0);
+	socket.send(request);
+
 	zmq::message_t update;
-	socket.recv (&update);
+	socket.recv(&update);
 
 	coinflipper::coinstatus cf;
 	cf.ParseFromArray(update.data(), update.size());
-	
+
 	auto results = result_array::create_from_pb(cf);
 
 	// ... and we print it out.
-
 	cout << "Total coins flipped:\t" << dec << commify(cf.total_flips()) << endl;
 	cout << "Coins per second:\t" << dec << commify(cf.flips_per_second()) << endl << endl;
 
-	array<size_t, 4> max {0,0,0,0};
+	// We print the table in four columns, each with numbers aligned to the right
 
+	array<size_t, 4> maximal{ 0, 0, 0, 0 };
 	array<string, 128> values;
 
 	for (int i = 0; i < 128; ++i)
 	{
 		values[i] = commify(results[i]);
-		max[i / 32] = ::max(max[i / 32], values[i].size());
+		maximal[i / 32] = max(maximal[i / 32], values[i].size());
 	}
 
 	for (int i = 0; i < 32; ++i)
 	{
-		cout << dec << setw(3) << i + 0  << ": " << setw(max[0]) << values[i + 0 ] << "   " <<
-					   setw(3) << i + 32 << ": " << setw(max[1]) << values[i + 32] << "   " <<
-					   setw(3) << i + 64 << ": " << setw(max[2]) << values[i + 64] << "   " <<
-					   setw(3) << i + 96 << ": " << setw(max[3]) << values[i + 96] << endl;
+		cout << dec << setw(3) << i + 0 << ": " << setw(maximal[0]) << values[i + 0] << "   " <<
+			setw(3) << i + 32 << ": " << setw(maximal[1]) << values[i + 32] << "   " <<
+			setw(3) << i + 64 << ": " << setw(maximal[2]) << values[i + 64] << "   " <<
+			setw(3) << i + 96 << ": " << setw(maximal[3]) << values[i + 96] << endl;
 	}
 
 	return 0;
@@ -387,18 +421,18 @@ int coin_status(char* server_address) {
 
 int main(int argc, char* argv[])
 {
-	switch (argc) 
+	switch (argc)
 	{
-		case 3:
+	case 3:
 		if (string(argv[1]) == "flipper")
 			return coin_flipper(argv[2]);
 		if (string(argv[1]) == "status")
 			return coin_status(argv[2]);
-		case 2: 
+	case 2:
 		if (string(argv[1]) == "server")
 			return coin_server();
-	
-		default:
+
+	default:
 		cerr << "Usage: coinflipper [flipper|server|status] <server>" << endl;
 		return 1;
 	}
