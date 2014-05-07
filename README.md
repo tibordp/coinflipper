@@ -10,7 +10,7 @@ It does so by counting occurences of coin flip streaks of any length (between 1 
 Building
 --------
 
-Requires an implementation of Google's Protocol Buffers compiler (protobuf), ZeroMQ, GNU Make, a C++11-able C++ compiler (e.g. GCC >=4.9.0, Clang), and a sensible build environment (i.e. not Windows).
+Requires an implementation of Google's Protocol Buffers compiler (protobuf), ZeroMQ, GNU Make, a C++11-capable C++ compiler (e.g. GCC >=4.9.0, Clang), and a sensible build environment (i.e. not Windows).
 
 Run `make protobuf`, then `make`. It's that easy!
 
