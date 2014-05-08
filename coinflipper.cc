@@ -392,7 +392,8 @@ int coin_status(const string& server_address) {
 	double rest = pow(10, ceil(milestone)) - cf.total_flips();
 	double remaining = rest / cf.flips_per_second();
 
-	cout << "Time remaining to next milestone: " << timeify(remaining)  << endl << endl;
+	if  (total_flips.size() != 0 && cf.flips_per_second() != 0)
+		cout << "Time remaining to next milestone: " << timeify(remaining)  << endl << endl;
 
 // We print the table in four columns, each with numbers aligned to the right
 
