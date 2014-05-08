@@ -332,12 +332,24 @@ int coin_server() {
 
 /* ------------------------------------------------------------------------- */
 
-#include <sstream>
-#include <iomanip>
-
 /*
 This function synchronously requests a status update from the server.
 */
+
+string timeify(uint64_t seconds) 
+{
+	stringstream ss;
+	auto days =  seconds / (3600 * 24); seconds %= (3600 * 24);
+	auto hours = seconds / (3600); seconds %= (3600);
+	auto minutes = seconds / (60); seconds %= (60);
+
+	if (days != 0) ss << days << " days ";
+	if (hours != 0) ss << hours << " hours ";
+	if (minutes != 0) ss << minutes << " minutes ";
+	if (seconds != 0) ss << seconds<< " seconds ";
+
+	return ss.str();
+}
 
 int coin_status(const string& server_address) {
 	zmq::context_t context(1);
@@ -367,9 +379,20 @@ int coin_status(const string& server_address) {
 
 	auto results = result_array::create_from_pb(cf);
 
+	auto total_flips = commify(cf.total_flips());
+	auto fps = commify(cf.flips_per_second());
+
 // ... and we print it out.
-	cout << "Total coins flipped:\t" << dec << commify(cf.total_flips()) << endl;
-	cout << "Coins per second:\t" << dec << commify(cf.flips_per_second()) << endl << endl;
+	cout << "Total coins flipped: " << dec << 
+		setw(max(total_flips.size(), fps.size())) << commify(cf.total_flips()) << endl;
+	cout << "Coins per second:    " << dec << 
+		setw(max(total_flips.size(), fps.size())) << commify(cf.flips_per_second()) << endl << endl;
+
+	double milestone = log(cf.total_flips()) / log(10);
+	double rest = pow(10, ceil(milestone)) - cf.total_flips();
+	double remaining = rest / cf.flips_per_second();
+
+	cout << "Time remaining to next milestone: " << timeify(remaining)  << endl << endl;
 
 // We print the table in four columns, each with numbers aligned to the right
 
@@ -384,9 +407,9 @@ int coin_status(const string& server_address) {
 
 	for (int i = 0; i < 32; ++i)
 	{
-		cout << dec << setw(3) << i + 0 << ": " << setw(maximal[0]) << values[i + 0] << "   " <<
-		setw(3) << i + 32 << ": " << setw(maximal[1]) << values[i + 32] << "   " <<
-		setw(3) << i + 64 << ": " << setw(maximal[2]) << values[i + 64] << "   " <<
+		cout << dec << setw(3) << i + 0 << ": " << setw(maximal[0]) << values[i + 0] << "        " <<
+		setw(3) << i + 32 << ": " << setw(maximal[1]) << values[i + 32] << "        " <<
+		setw(3) << i + 64 << ": " << setw(maximal[2]) << values[i + 64] << "        " <<
 		setw(3) << i + 96 << ": " << setw(maximal[3]) << values[i + 96] << endl;
 	}
 
