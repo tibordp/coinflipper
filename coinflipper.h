@@ -16,15 +16,14 @@ public:
 	template <typename T> 
 	void insert_to_pb(T& pb_message) const
 	{
-		int j = 0;
-		for (auto i : *this)
-		{
-			if (i == 0) continue;
-			auto d = pb_message.add_flips();
-			d->set_index(j);
-			d->set_flips(i);
-
-			++j;
+		for (int i = 0; i < 128; i ++)
+		{	
+			if ((*this)[i] != 0) 
+			{
+				auto d = pb_message.add_flips();
+					 d->set_position(i);
+					 d->set_flips((*this)[i]);	
+			}
 		}
 	}
 
@@ -36,7 +35,7 @@ public:
 
 		for (const auto& i : pb_message.flips())
 		{
-			result[i.index()] = i.flips();
+			result[i.position()] = i.flips();
 		}
 
 		return result;

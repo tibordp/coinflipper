@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <array>
+#include <bitset>
 #include <atomic>
 #include <chrono>
 #include <fstream>
@@ -27,6 +28,74 @@ int P1 = 1;
 // A global ZMQ context
 zmq::context_t context(1);
 
+
+/*
+	This class is a dummy RNG that produces a sequence where streaks are perfectly
+	exponentially distributed. Useful for debugging.
+
+	Principle of operation:
+
+	000000011111111
+	000111100001111     We take the binary representation of consecutive numbers
+	011001100110011   
+	101010101010101
+
+           4 
+       3       3        We find the position of the leftmost 1 bit (=n).
+     2   2   2   2
+	1 1 1 1 1 1 1 1
+
+	121312141213121     
+
+	By repeating alternating bits n times, we produce a stream of bits:
+	0 1 1 0 1 1 1 0 1 1 0 1 1 1 1 0 1 1 0 1 1 1 0 1 1 0
+
+	Mind that while this will give a perfect score with coinflipper, it is clearly
+	a very poor RNG, since it has a huge bias towards 1.
+*/
+
+inline int ctzll(uint64_t state)	{
+	for (int i = 0; i < 64; ++i)
+	{
+		if (state & ((uint64_t)1 << i))
+			return i;
+	}
+	return 64;
+}
+
+class dummy_rng
+{
+	bool cur_bit;
+	uint64_t state;
+	unsigned remaining;
+
+public:
+	void seed(uint64_t state_) {
+		state = state_;
+	}
+
+	dummy_rng() : cur_bit(false), state(0), remaining(0) {}
+
+	inline uint64_t operator()() {
+		bitset<64> result(0);
+
+		for (int i = 64; i--; )
+		{
+			if (!remaining)
+			{
+				++state;
+				cur_bit = !cur_bit;
+				remaining = ctzll(state) + 1;
+			} 
+			
+			result.set(i, cur_bit);
+			--remaining;
+		}
+
+		return result.to_ullong();
+	}
+};
+
 /*
 	This class does the actual coin flipping. It seeds the RNG from 
 	a random device, such as /dev/random, then it simply counts streaks.
@@ -44,25 +113,27 @@ public:
 		/* We can use random number generators with varying output
 		   integer size */
 
-		using RngInt = decltype(rng());
+		const int      bit_count = sizeof(decltype(rng())) * 8;
+		const uint32_t iter_num = 0xffffff;
+
 		rng.seed(random_device()());
 
 		result_array current;
 		current.fill(0);
 
-		RngInt cur_bits;
+		bitset<bit_count> cur_bits;
 		unsigned count = 0;
 
 		bool prev = true;
-		static const uint32_t iter_num = 0xffffff;
 
 		for (uint32_t iteration = iter_num;; --iteration)
 		{
 			cur_bits = rng();
 
-			for (int i = sizeof (RngInt); i--;)
+			for (int i = bit_count; i--;)
 			{
-				bool t = (cur_bits & ((RngInt)1 << i)) == 0;
+				bool t = cur_bits[i];
+
 				if (t == prev)
 					++count;
 				else
@@ -77,7 +148,7 @@ public:
 
 			if (iteration == 0)
 			{
-				results.push(current, iter_num * sizeof (RngInt));
+				results.push(current, iter_num * bit_count);
 				iteration = iter_num;
 				current.fill(0);
 			}
@@ -155,8 +226,10 @@ int coin_flipper(const string& server_address)
 	vector<thread> workers;
 
 // We create many workers.
-	for (unsigned i = 0; i < thread::hardware_concurrency(); ++i)
-		workers.push_back(thread(coin<mt19937_64>(results)));
+	//for (unsigned i = 0; i < thread::hardware_concurrency(); ++i)
+	for (unsigned i = 0; i < 1; ++i)
+		//workers.push_back(thread(coin<mt19937_64>(results)));
+		workers.push_back(thread(coin<dummy_rng>(results)));
 
 // We can have multiple senders but one suffices.
 	thread(coin_sender(results, server_address)).join();
@@ -421,7 +494,7 @@ void coin_print_status(const coinflipper::coinstatus& cf)
 
 	/* We print the table in four columns, each with numbers aligned to the right */
 
-	array<size_t, 4> maximal{ 0, 0, 0, 0 };
+	array<size_t, 4> maximal{{ 0, 0, 0, 0 }};
 	array<string, 128> values;
 
 	for (int i = 0; i < 128; ++i)
@@ -434,7 +507,7 @@ void coin_print_status(const coinflipper::coinstatus& cf)
 	{
 		for (int j = 0; j < 4; ++j)
 		{
-			cout << setw(3) << i + (32 * j) << ": " << setw(maximal[j]) << values[i + (32 * j)];
+			cout << setw(3) << i + (32 * j) + 1 << ": " << setw(maximal[j]) << values[i + (32 * j)];
 			if (j < 3) cout <<  "        ";
 		}
 		cout << endl;
