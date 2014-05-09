@@ -1,25 +1,31 @@
+#include <algorithm>
+#include <array>
+#include <atomic>
+#include <chrono>
+#include <fstream>
 #include <iostream>
+#include <mutex>
+#include <random>
+#include <string>
 #include <thread>
 #include <vector>
-#include <random>
-#include <atomic>
+
 #include <cstdint>
-#include <string>
-#include <array>
-#include <chrono>
-#include <mutex>
-#include <algorithm>
+#include <ctime>
+
+#include "coinflipper.pb.h"
+#include <zmq.hpp>
 
 #include "coinflipper.h"
-#include "coinflipper.pb.h"
-
-#include <zmq.hpp>
 
 using namespace std;
 
 // Because ZMQ bindings are daft and require pointers
 int P0 = 0;
 int P1 = 1;
+
+// A global ZMQ context
+zmq::context_t context(1);
 
 /*
 	This class does the actual coin flipping. It seeds the RNG from 
@@ -86,15 +92,12 @@ public:
 
 class coin_sender
 {
-	zmq::context_t& context;
 	async_results& results;
-
 	string server_address;
+
 public:
-	coin_sender(zmq::context_t& context_,
-		async_results& results_,
+	coin_sender(async_results& results_,
 		const string& server_address_) :
-	context(context_),
 	results(results_),
 	server_address(server_address_) {};
 
@@ -148,9 +151,7 @@ public:
 
 int coin_flipper(const string& server_address)
 {
-	zmq::context_t context(1);
 	async_results results;
-
 	vector<thread> workers;
 
 // We create many workers.
@@ -158,7 +159,7 @@ int coin_flipper(const string& server_address)
 		workers.push_back(thread(coin<mt19937_64>(results)));
 
 // We can have multiple senders but one suffices.
-	thread(coin_sender(context, results, server_address)).join();
+	thread(coin_sender(results, server_address)).join();
 
 // We wait for workers to terminate.
 	for (auto & i : workers)
@@ -177,15 +178,10 @@ This class listens for client connections that send coinflip updates.
 
 class coin_listener_workers
 {
-	zmq::context_t& context;
 	async_results& results;
 
 public:
-
-	coin_listener_workers(zmq::context_t& context_,
-		async_results& results_) :
-	context(context_),
-	results(results_) {};
+	coin_listener_workers(async_results& results_) : results(results_) {};
 
 	void operator()() {
 		try
@@ -247,8 +243,8 @@ public:
 			previous_count += flip_delta;
 			previous_time += time_delta;
 
-		/* We choose a larger default time interval so that we don't sample
-		   in a single update interval. */
+			/* We choose a larger default time interval so that we don't sample
+		   	   in a single update interval. */
 
 			this_thread::sleep_for(seconds(5));
 		}
@@ -261,15 +257,12 @@ This class listens for client connections that request status updates.
 
 class coin_listener_clients
 {
-	zmq::context_t& context;
 	async_results& results;
 	double& coins_per_second;
 
 public:
-	coin_listener_clients(zmq::context_t& context_,
-		async_results& results_,
+	coin_listener_clients(async_results& results_,
 		double& coins_per_second_) :
-	context(context_),
 	results(results_),
 	coins_per_second(coins_per_second_) {};
 
@@ -313,16 +306,63 @@ public:
 
 
 int coin_server() {
-	zmq::context_t context(1);
 	async_results results;
+
+	{
+		ifstream current_status("status.cf", ios::binary);
+		if (current_status.good())
+		{
+			coinflipper::coinstatus cf;
+			cf.ParseFromIstream(&current_status);
+			auto rslt = result_array::create_from_pb(cf);
+			results.push(rslt, cf.total_flips());
+		}
+	}
 
 	vector<thread> threads;
 
 	double cps = 0;
 
 	threads.push_back(thread(coin_listener_timer(results, cps)));
-	threads.push_back(thread(coin_listener_workers(context, results)));
-	threads.push_back(thread(coin_listener_clients(context, results, cps)));
+	threads.push_back(thread(coin_listener_workers(results)));
+	threads.push_back(thread(coin_listener_clients(results, cps)));
+
+	// We have a thread that exports and saves status every n minutes
+	threads.push_back(thread([&]
+	{
+		// We fetch the current status
+		for (;;)
+		{
+			auto rslt = results.get();
+			coinflipper::coinstatus cf;
+
+			cf.set_total_flips(rslt.second);
+			cf.set_flips_per_second(cps);
+			rslt.first.insert_to_pb(cf);
+
+			// We generate the appropriate filename
+
+			auto cur_time = time(nullptr);
+
+			/* TODO: Get rid of this ugly C-style datetime handling. */
+	    	char formatted_date[128];
+	    	strftime(formatted_date, sizeof(formatted_date), "%Y_%m_%d_%H_%M_%S", gmtime(&cur_time));
+
+			stringstream ss;
+			ss << "history/status_" << formatted_date << ".cf";
+			
+			{
+				ofstream status(ss.str(), ios::binary);
+				cf.SerializeToOstream(&status);
+			}
+			{
+				ofstream status("status.cf", ios::binary);
+				cf.SerializeToOstream(&status);
+			}
+
+			this_thread::sleep_for(chrono::minutes(5));
+		}
+	}));
 
 	for (auto &i : threads)
 		i.join();
@@ -351,42 +391,26 @@ string timeify(uint64_t seconds)
 	return ss.str();
 }
 
-int coin_status(const string& server_address) {
-	zmq::context_t context(1);
+/* A human-readable textual output of the current status */
 
-	zmq::socket_t socket(context, ZMQ_REQ);
-#ifdef ZMQ_IPV6
-	socket.setsockopt(ZMQ_IPV6, &P1, sizeof(P1));
-#else
-	socket.setsockopt(ZMQ_IPV4ONLY, &P0, sizeof(P0));
-#endif
-
-	string url("tcp://");
-	url += server_address;
-	url += ":5556";
-
-	socket.connect(url.c_str());
-
-// We send an "empty" request - just a ping.
-	zmq::message_t request(0);
-	socket.send(request);
-
-	zmq::message_t update;
-	socket.recv(&update);
-
-	coinflipper::coinstatus cf;
-	cf.ParseFromArray(update.data(), update.size());
+void coin_print_status(const coinflipper::coinstatus& cf)
+{
+	/* Some general statistics */
 
 	auto results = result_array::create_from_pb(cf);
-
+	cout << dec;
+	
 	auto total_flips = commify(cf.total_flips());
 	auto fps = commify(cf.flips_per_second());
 
-// ... and we print it out.
-	cout << "Total coins flipped: " << dec << 
+	cout << "Total coins flipped: " << 
 		setw(max(total_flips.size(), fps.size())) << commify(cf.total_flips()) << endl;
-	cout << "Coins per second:    " << dec << 
+	cout << "Coins per second:    " << 
 		setw(max(total_flips.size(), fps.size())) << commify(cf.flips_per_second()) << endl << endl;
+
+	/* We calculate the time remaining to next "decimal milestone" - that is 10^n total coinflips
+	   Milestones obviously get exponentially harderto reach 
+	 */
 
 	double milestone = log(cf.total_flips()) / log(10);
 	double rest = pow(10, ceil(milestone)) - cf.total_flips();
@@ -395,7 +419,7 @@ int coin_status(const string& server_address) {
 	if  (total_flips.size() != 0 && cf.flips_per_second() != 0)
 		cout << "Time remaining to next milestone: " << timeify(remaining)  << endl << endl;
 
-// We print the table in four columns, each with numbers aligned to the right
+	/* We print the table in four columns, each with numbers aligned to the right */
 
 	array<size_t, 4> maximal{ 0, 0, 0, 0 };
 	array<string, 128> values;
@@ -408,11 +432,46 @@ int coin_status(const string& server_address) {
 
 	for (int i = 0; i < 32; ++i)
 	{
-		cout << dec << setw(3) << i + 0 << ": " << setw(maximal[0]) << values[i + 0] << "        " <<
-		setw(3) << i + 32 << ": " << setw(maximal[1]) << values[i + 32] << "        " <<
-		setw(3) << i + 64 << ": " << setw(maximal[2]) << values[i + 64] << "        " <<
-		setw(3) << i + 96 << ": " << setw(maximal[3]) << values[i + 96] << endl;
+		for (int j = 0; j < 4; ++j)
+		{
+			cout << setw(3) << i + (32 * j) << ": " << setw(maximal[j]) << values[i + (32 * j)];
+			if (j < 3) cout <<  "        ";
+		}
+		cout << endl;
 	}
+}
+
+int coin_status(const string& server_address, bool export_data = false) 
+{
+	zmq::socket_t socket(context, ZMQ_REQ);
+
+#ifdef ZMQ_IPV6
+	socket.setsockopt(ZMQ_IPV6, &P1, sizeof(P1));
+#else
+	socket.setsockopt(ZMQ_IPV4ONLY, &P0, sizeof(P0));
+#endif
+
+	string url("tcp://");
+	url += server_address;
+	url += ":5556";
+
+	socket.connect(url.c_str());
+
+	// We send an "empty" request - just a ping.
+
+	zmq::message_t request(0);
+	socket.send(request);
+
+	zmq::message_t update;
+	socket.recv(&update);
+
+	coinflipper::coinstatus cf;
+	cf.ParseFromArray(update.data(), update.size());
+
+	if (export_data)
+		cf.SerializeToOstream(&cout);
+	else
+		coin_print_status(cf);
 
 	return 0;
 }
@@ -428,12 +487,15 @@ int main(int argc, char* argv[])
 			return coin_flipper(argv[2]);
 		if (string(argv[1]) == "status")
 			return coin_status(argv[2]);
+		if (string(argv[1]) == "export")
+			return coin_status(argv[2], true);
+
 		case 2:
 		if (string(argv[1]) == "server")
 			return coin_server();
 
 		default:
-		cerr << "Usage: coinflipper [flipper|server|status] <server>" << endl;
+		cerr << "Usage: coinflipper [flipper|server|status|export] <server>" << endl;
 		return 1;
 	}
 }

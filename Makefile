@@ -121,6 +121,7 @@ dirs:
 	@echo "Creating directories"
 	@mkdir -p $(dir $(OBJECTS))
 	@mkdir -p $(BIN_PATH)
+	@mkdir -p history
 
 # Installs to the set path
 .PHONY: install
