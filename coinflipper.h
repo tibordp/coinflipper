@@ -7,11 +7,9 @@
 
 #include <zmq.hpp>
 
-extern int P0;
-extern int P1;
-
 // A global ZMQ context
 extern zmq::context_t context;
+void enable_ipv6(zmq::socket_t& socket);
 
 
 /* 

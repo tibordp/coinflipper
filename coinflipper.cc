@@ -31,11 +31,16 @@
 
 using namespace std;
 
-int P0 = 0;
-int P1 = 1;
-
 // A global ZMQ context
 zmq::context_t context(1);
+
+void enable_ipv6(zmq::socket_t& socket)
+{
+	int P1 = 1;	
+	#ifdef ZMQ_IPV6
+		socket.setsockopt(ZMQ_IPV6, &P1, sizeof(P1));
+	#endif
+}
 
 int coin_flipper(const string&);
 int coin_server();

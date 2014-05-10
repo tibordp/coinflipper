@@ -1,12 +1,7 @@
 #include <algorithm>
 #include <array>
-#include <atomic>
-#include <bitset>
 #include <chrono>
 #include <fstream>
-#include <iomanip>
-#include <iostream>
-#include <mutex>
 #include <random>
 #include <sstream>
 #include <string>
@@ -38,11 +33,8 @@ public:
 		try
 		{
 			zmq::socket_t socket(context, ZMQ_PULL);
-#ifdef ZMQ_IPV6
-			socket.setsockopt(ZMQ_IPV6, &P1, sizeof(P1));
-#else
-			socket.setsockopt(ZMQ_IPV4ONLY, &P0, sizeof(P0));
-#endif
+			enable_ipv6(socket);
+
 			socket.bind("tcp://*:5555");
 
 			while (true) {
@@ -121,12 +113,7 @@ public:
 		try
 		{
 			zmq::socket_t socket(context, ZMQ_REP);
-
-		#ifdef ZMQ_IPV6
-			socket.setsockopt(ZMQ_IPV6, &P1, sizeof(P1));
-		#else
-			socket.setsockopt(ZMQ_IPV4ONLY, &P0, sizeof(P0));
-		#endif
+			enable_ipv6(socket);
 
 			socket.bind("tcp://*:5556");
 
@@ -179,6 +166,7 @@ int coin_server() {
 	threads.push_back(thread(coin_listener_clients(results, cps)));
 
 	// We have a thread that exports and saves status every n minutes
+
 	threads.push_back(thread([&]
 	{
 		// We fetch the current status
@@ -192,7 +180,6 @@ int coin_server() {
 			rslt.first.insert_to_pb(cf);
 
 			// We generate the appropriate filename
-
 			auto cur_time = time(nullptr);
 
 			/* TODO: Get rid of this ugly C-style datetime handling. */

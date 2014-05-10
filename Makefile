@@ -1,8 +1,6 @@
 #### PROJECT SETTINGS ####
 # The name of the executable to be created
 BIN_NAME := coinflipper
-# Compiler used
-CXX = g++
 # Extension of source files used in the project
 SRC_EXT = cc
 # Path to the source directory, relative to the makefile

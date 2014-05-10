@@ -103,11 +103,7 @@ public:
 			cerr << "Started flipping the coins (my hash is: " << hex << hash << ") " << endl;
 
 			zmq::socket_t socket(context, ZMQ_PUSH);
-#ifdef ZMQ_IPV6
-			socket.setsockopt(ZMQ_IPV6, &P1, sizeof(P1));
-#else
-			socket.setsockopt(ZMQ_IPV4ONLY, &P0, sizeof(P0));
-#endif
+			enable_ipv6(socket);
 
 		/* We craft 0MQ URL from the server address */
 
@@ -153,7 +149,7 @@ int coin_flipper(const string& server_address)
 		threads.push_back(thread(coin<mt19937_64>(results)));
 
 	// We can have multiple senders but one suffices.
-	threads.puch_back(thread(coin_sender(results, server_address)));
+	threads.push_back(thread(coin_sender(results, server_address)));
 
 	// Wait for workers to terminate.
 	for (auto & i : threads)

@@ -19,7 +19,7 @@ Usage
 
 Coin Flipper utilises a server-client model, so both your server and your client(s) must have it compiled, and have network connectivity between each other.
 
-What you should first set up is the server. Run `./coinflipper server` on the desired server machine.
+What you should first set up is the server. Run `./coinflipper server` on the desired server machine. The server will attempt to load the state from `state.cf` file, if it exists. It will also periodically save the state to the same file as well as timestamped dumps in the `history/` directory.
 
 The next thing you want to do is run `./coinflipper flipper <server address>` on each of the client nodes you wish to configure (the more the merrier!).
 

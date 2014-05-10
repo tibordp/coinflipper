@@ -1,18 +1,14 @@
 #include <algorithm>
 #include <array>
-#include <atomic>
-#include <bitset>
 #include <chrono>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
-#include <mutex>
 #include <random>
 #include <sstream>
 #include <string>
 #include <thread>
 #include <utility>
-#include <vector>
 
 #include <climits>
 #include <cstdint>
@@ -40,10 +36,6 @@ string commify(T value)
 	ss << setprecision(0) << fixed << value;
 	return ss.str();
 }
-
-/*
-This function synchronously requests a status update from the server.
-*/
 
 string timeify(uint64_t seconds) 
 {
@@ -110,15 +102,15 @@ void coin_print_status(const coinflipper::coinstatus& cf)
 	}
 }
 
+/*
+This function synchronously requests a status update from the server.
+*/
+
+
 int coin_status(const string& server_address, bool export_data = false) 
 {
 	zmq::socket_t socket(context, ZMQ_REQ);
-
-#ifdef ZMQ_IPV6
-	socket.setsockopt(ZMQ_IPV6, &P1, sizeof(P1));
-#else
-	socket.setsockopt(ZMQ_IPV4ONLY, &P0, sizeof(P0));
-#endif
+	enable_ipv6(socket);
 
 	string url("tcp://");
 	url += server_address;
