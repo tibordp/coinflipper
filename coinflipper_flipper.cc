@@ -37,7 +37,7 @@ public:
 		   integer size */
 
 		const int      bit_count = sizeof(decltype(rng())) * CHAR_BIT;
-		const uint32_t iter_num = 0xffffff;
+		const uint32_t iter_num = 0xffff;
 
 		rng.seed(random_device()());
 
