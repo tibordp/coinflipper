@@ -1,12 +1,23 @@
-#include <mutex>
-#include <utility>
+#pragma once
+
 #include <array>
-#include <sstream>
-#include <iomanip>
+#include <utility>
+#include <mutex>
+#include <cstdint>
+
+#include <zmq.hpp>
+
+extern int P0;
+extern int P1;
+
+// A global ZMQ context
+extern zmq::context_t context;
+
 
 /* 
-	result_array can be converted to any appropriate Protocol Buffers message that
-	implements flips(), add_flips()
+	result_array is a simple array container that holds the statistics 
+	It can be converted to any appropriate Protocol Buffers message that
+	implements flips(), add_flips().
 */
 
 class result_array : public std::array<uint64_t, 128> 
@@ -42,6 +53,12 @@ public:
 	}
 };
 
+/*
+	async_results is a class that holds the current statistics about coinflips
+	it is used by both the server and the worker nodes. It uses locking when 
+	it updates, so it can be updated by many threads at once.
+*/
+
 class async_results 
 {
 private:
@@ -70,7 +87,7 @@ public:
 	std::pair<result_array, uint64_t> get() 
 	{
 		std::lock_guard<std::mutex> lg(mtx);
-		return std::make_pair(rslt, total);
+		return make_pair(rslt, total);
 	}
 
 	void pop() 
@@ -80,22 +97,3 @@ public:
 		total = 0;
 	}
 };
-
-
-// This function formats the number with , as a thousands separator
-
-template<typename T> 
-std::string commify(T value) 
-{
-	struct punct : public std::numpunct<char>
-	{
-	protected:
-		virtual char do_thousands_sep() const { return ','; }
-		virtual std::string do_grouping() const { return "\03"; }
-	};
-
-	std::stringstream ss;
-	ss.imbue({ std::locale(), new punct });
-	ss << std::setprecision(0) << std::fixed << value;
-	return ss.str();
-}
