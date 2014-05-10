@@ -26,9 +26,9 @@ inline int ctzll(uint64_t state)	{
 	011001100110011   
 	101010101010101
 
-           4 
-       3       3        We find the position of the leftmost 1 bit (=n).
-     2   2   2   2
+	       4 
+	  3       3        We find the position of the leftmost 1 bit (=n).
+	 2   2   2   2
 	1 1 1 1 1 1 1 1
 
 	121312141213121     
