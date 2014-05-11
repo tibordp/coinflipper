@@ -36,10 +36,10 @@ zmq::context_t context(1);
 
 void enable_ipv6(zmq::socket_t& socket)
 {
+#ifdef ZMQ_IPV6
 	int P1 = 1;	
-	#ifdef ZMQ_IPV6
-		socket.setsockopt(ZMQ_IPV6, &P1, sizeof(P1));
-	#endif
+	socket.setsockopt(ZMQ_IPV6, &P1, sizeof(P1));
+#endif
 }
 
 int coin_flipper(const string&);

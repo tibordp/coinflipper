@@ -62,12 +62,16 @@ public:
 				else
 				{
 					prev = t;
-					++current[count];
+					
+					/* It is unlikely that we'll ever encounter streaks longer than 127 */
+					if (count <= 127)
+						++current[count];
+		
 					count = 0;
 				}
 			}
 
-			/* Each 0xffffff * 64 flips, we send an update */
+			/* Each 0xffff * 64 flips, we send an update */
 
 			if (iteration == 0)
 			{
@@ -105,7 +109,7 @@ public:
 			zmq::socket_t socket(context, ZMQ_PUSH);
 			enable_ipv6(socket);
 
-		/* We craft 0MQ URL from the server address */
+			/* We craft 0MQ URL from the server address */
 
 			string url("tcp://");
 			url += server_address;
@@ -153,9 +157,7 @@ int coin_flipper(const string& server_address)
 
 	// Wait for workers to terminate.
 	for (auto & i : threads)
-	{
 		i.join();
-	}
 
 	return 0;
 }

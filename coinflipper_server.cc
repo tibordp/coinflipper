@@ -68,13 +68,16 @@ class coin_listener_timer
 	uint64_t previous_count;
 public:
 	coin_listener_timer(async_results& results_, double& coins_per_second_) :
-	results(results_), coins_per_second(coins_per_second_) {};
+	results(results_), coins_per_second(coins_per_second_) 
+	{
+		previous_time = chrono::high_resolution_clock::now();
+		previous_count = 0;
+	};
 
 	void operator()() {
 		for (;;)
 		{
 			using namespace chrono;
-
 			auto rslt = results.get();
 
 			auto flip_delta = rslt.second - previous_count;
