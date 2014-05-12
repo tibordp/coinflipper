@@ -11,8 +11,15 @@ message coinbatch {
 	optional int64 total_flips = 3;
 }
 
+message coinstats {
+	required int64 hash = 1;
+	required int64 flips_per_second = 2;
+}
+
 message coinstatus {
 	repeated coinflip flips = 2;
 	optional int64 total_flips = 3;
 	optional double flips_per_second = 4;
+	repeated coinstats stats = 5;
 }
+

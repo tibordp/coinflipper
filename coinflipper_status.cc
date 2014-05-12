@@ -95,6 +95,26 @@ void coin_print_status(const coinflipper::coinstatus& cf)
 	cout << "Coins per second:    " << 
 		setw(max(total_flips.size(), fps.size())) << commify(cf.flips_per_second()) << endl << endl;
 
+	vector<pair<uint64_t, uint64_t>> connected_workers;
+
+	for (const auto& i : cf.stats())
+	{
+		connected_workers.push_back(make_pair(i.hash(), i.flips_per_second()));
+	}
+
+	sort(connected_workers.begin(), connected_workers.end(), [](const pair<uint64_t, uint64_t>& a, 
+		const pair<uint64_t, uint64_t>& b) {return a.second < b.second;});
+
+	if (!connected_workers.empty())
+	{
+		cout << "Connected clients:" << endl;
+		for (const auto& i : cf.stats())
+		{
+			cout << hex << i.hash() << ": \t" << dec << commify(i.flips_per_second()) << " cps" <<  endl;
+		}
+		cout << endl;
+	}
+
 	/* We calculate the time remaining to next "decimal milestone" - that is 10^n total coinflips
 	   Milestones obviously get exponentially harderto reach 
 	 */
