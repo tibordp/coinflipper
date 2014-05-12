@@ -78,8 +78,27 @@ string timeify(uint64_t seconds)
 	return ss.str();
 }
 
-/* A human-readable textual output of the current status */
+/* Just some helper classes to make numer alignment easier */
 
+class aligning_vector : public vector<string> {
+public:
+	size_t max_length() const {
+		return max_element(begin(), end(), 
+			[](const value_type& a, const value_type& b ) { return a.size() < b.size(); })->size();
+	}
+};
+
+template<typename T>
+class aligning_vector_t : public vector<pair<T, string>> {
+public:
+	using vt = typename vector<pair<T, string>>::value_type;
+	size_t max_length() const {
+		return max_element(this->begin(), this->end(), 
+			[](const vt& a, const vt& b ) { return a.second.size() < b.second.size(); })->second.size();
+	}
+};
+
+/* A human-readable textual output of the current status */
 void coin_print_status(const coinflipper::coinstatus& cf)
 {
 	/* Some general statistics */
@@ -95,23 +114,34 @@ void coin_print_status(const coinflipper::coinstatus& cf)
 	cout << "Coins per second:    " << 
 		setw(max(total_flips.size(), fps.size())) << commify(cf.flips_per_second()) << endl << endl;
 
-	vector<pair<uint64_t, uint64_t>> connected_workers;
+	/* We print out the statistics of currently connected clients. */
 
-	for (const auto& i : cf.stats())
+	aligning_vector_t<uint64_t> connected_workers;
+	auto stats = cf.stats();
+
+
+	sort(stats.begin(), stats.end(), 
+		[](const coinflipper::coinstats& a, const coinflipper::coinstats& b) {
+			return b.flips_per_second() < a.flips_per_second();
+		}
+	);
+
+	for (const auto& i : stats)
 	{
-		connected_workers.push_back(make_pair(i.hash(), i.flips_per_second()));
+		connected_workers.push_back(make_pair(i.hash(), commify(i.flips_per_second()) ));
 	}
-
-	sort(connected_workers.begin(), connected_workers.end(), [](const pair<uint64_t, uint64_t>& a, 
-		const pair<uint64_t, uint64_t>& b) {return b.second < a.second;});
 
 	if (!connected_workers.empty())
 	{
 		cout << "Connected clients:" << endl;
-		for (const auto& i : cf.stats())
+		size_t max_length = connected_workers.max_length();
+
+		for (const auto& i : connected_workers)
 		{
-			cout << hex << i.hash() << ": \t" << dec << commify(i.flips_per_second()) << " cps" <<  endl;
+			cout << setfill('0') << setw(8) << hex << (long long)i.first << ": " 
+				 << dec << setfill(' ') << setw(max_length) << i.second << " cps" <<  endl;
 		}
+
 		cout << endl;
 	}
 
@@ -128,20 +158,20 @@ void coin_print_status(const coinflipper::coinstatus& cf)
 
 	/* We print the table in four columns, each with numbers aligned to the right */
 
-	array<size_t, 4> maximal{{ 0, 0, 0, 0 }};
-	array<string, 128> values;
+	array<aligning_vector, 4> flips;
 
 	for (int i = 0; i < 128; ++i)
-	{
-		values[i] = commify(results[i]);
-		maximal[i / 32] = max(maximal[i / 32], values[i].size());
-	}
+		flips[i / 32].push_back(commify(results[i]));
+
+	array<size_t, 4> maximal;
+	for (int i = 0; i < 4; ++i)
+		maximal[i] = flips[i].max_length();
 
 	for (int i = 0; i < 32; ++i)
 	{
 		for (int j = 0; j < 4; ++j)
 		{
-			cout << setw(3) << i + (32 * j) + 1 << ": " << setw(maximal[j]) << values[i + (32 * j)];
+			cout << setw(3) << i + (32 * j) + 1 << ": " << setw(maximal[j]) << flips[j][i];
 			if (j < 3) cout <<  "        ";
 		}
 		cout << endl;

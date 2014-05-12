@@ -1,7 +1,7 @@
 /*
-	The MIT License (MIT)
+	coinflipper - A program that flips coins
 
-	Copyright (c) 2014, Coinflipper contributors
+	Copyright (c) 2014 coinflipper contributors
 
 	Permission is hereby granted, free of charge, to any person obtaining a copy
 	of this software and associated documentation files (the "Software"), to deal
