@@ -142,10 +142,8 @@ public:
 
 	uint64_t coins_per_second() {
 		lock_guard<mutex> lg(mtx);
-		auto now = chrono::high_resolution_clock::now();
 
 		auto t = tally();
-		cleanup(now - timeout);
 		
 		if (t.second == 0)
 			return 0;
@@ -155,7 +153,6 @@ public:
 
 	vector<pair<uint64_t, uint64_t>> cps_per_hash() {
 		lock_guard<mutex> lg(mtx);
-		auto now = chrono::high_resolution_clock::now();
 
 		vector<pair<uint64_t, uint64_t>> results;
 		for (const auto& i : workers())
@@ -166,9 +163,14 @@ public:
 			else
 				results.push_back(make_pair(i, (double)t.first / t.second * 1000));
 		}
-		cleanup(now - timeout);
 		
 		return results;
+	}
+
+	void clean() {
+		lock_guard<mutex> lg(mtx);	
+		auto now = chrono::high_resolution_clock::now();
+		cleanup(now - timeout);
 	}
 };
 
@@ -311,6 +313,9 @@ int coin_server() {
 				ofstream status("status.cf", ios::binary);
 				cf.SerializeToOstream(&status);
 			}
+
+			// Clean up any remaining stray connection from stats.
+			stats.clean();
 
 			this_thread::sleep_for(chrono::minutes(5));
 		}
