@@ -103,7 +103,7 @@ void coin_print_status(const coinflipper::coinstatus& cf)
 	}
 
 	sort(connected_workers.begin(), connected_workers.end(), [](const pair<uint64_t, uint64_t>& a, 
-		const pair<uint64_t, uint64_t>& b) {return a.second < b.second;});
+		const pair<uint64_t, uint64_t>& b) {return b.second < a.second;});
 
 	if (!connected_workers.empty())
 	{
