@@ -46,6 +46,16 @@ Check the status:
 docker run tibordp/coinflipper:latest status <server>
 ```
 
+## Running on Kubernetes
+
+Coinflipper is also Kubernetized, like any modern app ought be! You can deploy Coinflipper server and 2 workers on a cluster of your choice by 
+
+```
+kubectl apply -f kubernetes/coinflipper.yaml
+```
+
+The server component will run as a StatefulSet with 1GiB of persistent sotrage mounted, so you will never lose your progress even if you restart the pod. 
+
 ## License
 
 Licensed under MIT (http://opensource.org/licenses/MIT), but do try to use it only for Good&trade;.

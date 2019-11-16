@@ -1,0 +1,92 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: coinflipper
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 5555
+    targetPort: 5555
+    protocol: TCP
+    name: status-port
+  - port: 5556
+    targetPort: 5556
+    protocol: TCP
+    name: receive-port
+  selector:
+    app: coinflipper
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: coinflipper
+spec:
+  selector:
+    matchLabels:
+      app: coinflipper
+  serviceName: "coinflipper"
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: coinflipper
+    spec:
+      initContainers:
+      - name: init-coinflipper
+        image: busybox
+        command: ['sh', '-c', 'mkdir -p /opt/data/history']
+        volumeMounts:
+        - mountPath: "/opt/data"
+          name: volume
+      containers:
+      - image: tibordp/coinflipper:latest
+        imagePullPolicy: Always
+        name: coinflipper
+        ports:
+        - containerPort: 5555
+          name: status-port
+        - containerPort: 5556
+          name: receive-port
+        workingDir: /opt/data
+        command: ["/coinflipper"]
+        args: ["server"]
+        volumeMounts:
+        - mountPath: "/opt/data"
+          name: volume
+        livenessProbe:
+          exec:
+            command:
+            - /coinflipper
+            - status
+            - localhost
+          initialDelaySeconds: 5
+          periodSeconds: 5
+  volumeClaimTemplates:
+  - metadata:
+      name: volume
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: coinflipper-flipper
+spec:
+  selector:
+    matchLabels:
+      app: coinflipper-flipper
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: coinflipper-flipper
+    spec:
+      containers:
+      - image: tibordp/coinflipper:latest
+        imagePullPolicy: Always
+        name: coinflipper-flipper
+        command: ["/coinflipper"]
+        args: ["flipper", "coinflipper.default"]
