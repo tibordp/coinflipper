@@ -4,13 +4,13 @@ BIN_NAME := coinflipper
 # Extension of source files used in the project
 SRC_EXT = cc
 # Path to the source directory, relative to the makefile
-SRC_PATH = .
+SRC_PATH = ./src
 # General compiler flags
 COMPILE_FLAGS = -std=c++11 -Wall -Wextra -g
 # Protocol Buffer compiler
 PROTOBUF_COMPILER = protoc
 # Protocol Buffer flags
-PROTOBUF_FLAGS = --cpp_out=$(SRC_PATH)
+PROTOBUF_FLAGS = --proto_path=$(SRC_PATH) --cpp_out=$(SRC_PATH)
 # Additional release-specific flags
 RCOMPILE_FLAGS = -D NDEBUG -O3
 # Additional debug-specific flags
@@ -77,28 +77,10 @@ END_TIME = read st < $(TIME_FILE) ; \
 	st=$$((`date '+%s'` - $$st - 86400)) ; \
 	echo `date -u -d @$$st '+%H:%M:%S'` 
 
-# Version macros
-# Comment/remove this section to remove versioning
-VERSION := $(shell git describe --tags --long --dirty --always | \
-	sed 's/v\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\)-\?.*-\([0-9]*\)-\(.*\)/\1 \2 \3 \4 \5/g')
-VERSION_MAJOR := $(word 1, $(VERSION))
-VERSION_MINOR := $(word 2, $(VERSION))
-VERSION_PATCH := $(word 3, $(VERSION))
-VERSION_REVISION := $(word 4, $(VERSION))
-VERSION_HASH := $(word 5, $(VERSION))
-VERSION_STRING := \
-	"$(VERSION_MAJOR).$(VERSION_MINOR).$(VERSION_PATCH).$(VERSION_REVISION)"
-override CXXFLAGS := $(CXXFLAGS) \
-	-D VERSION_MAJOR=$(VERSION_MAJOR) \
-	-D VERSION_MINOR=$(VERSION_MINOR) \
-	-D VERSION_PATCH=$(VERSION_PATCH) \
-	-D VERSION_REVISION=$(VERSION_REVISION) \
-	-D VERSION_HASH=\"$(VERSION_HASH)\"
-
 # Standard, non-optimized release build
 .PHONY: release
 release: dirs
-	@echo "Beginning release build v$(VERSION_STRING)"
+	@echo "Beginning release build"
 	@$(START_TIME)
 	@$(MAKE) all --no-print-directory
 	@echo -n "Total build time: "
@@ -107,7 +89,7 @@ release: dirs
 # Debug build for gdb debugging
 .PHONY: debug
 debug: dirs
-	@echo "Beginning debug build v$(VERSION_STRING)"
+	@echo "Beginning debug build"
 	@$(START_TIME)
 	@$(MAKE) all --no-print-directory
 	@echo -n "Total build time: "
@@ -135,7 +117,7 @@ uninstall:
 
 .PHONY: protobuf
 protobuf:
-	@$(PROTOBUF_COMPILER) $(PROTOBUF_FLAGS) *.proto	
+	@$(PROTOBUF_COMPILER) $(PROTOBUF_FLAGS) $(SRC_PATH)/*.proto	
 
 # Removes all build files
 .PHONY: clean

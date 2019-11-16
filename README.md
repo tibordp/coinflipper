@@ -1,5 +1,4 @@
-Coin Flipper
-============
+# Coin Flipper
 
 The latest in coin-flipping technology, this program will flip any desired amount of coins at once, using a random generator of your most refined choice.
 
@@ -7,15 +6,18 @@ The purpose of the project is to benchmark and verify uniformness of random numb
 
 It does so by counting occurences of coin flip streaks of any length (between 1 and 128). The client nodes generate coin flips and send their statistics to the server.
 
-Building
---------
+## Building from source
 
-Requires an implementation of Google's Protocol Buffers compiler (protobuf), ZeroMQ, GNU Make, a C++11-able C++ compiler (e.g. GCC >=4.7.0, Clang), and a sensible build environment.
+With Docker:
+```bash
+docker build -t coinflipper .
+```
+
+Building without Docker requires an implementation of Google's Protocol Buffers compiler (protobuf), ZeroMQ, GNU Make, a C++11-able C++ compiler (e.g. GCC >=4.7.0, Clang), and a sensible build environment.
 
 Run `make protobuf`, then `make`. It's that easy!
 
-Usage
------
+## Usage
 
 Coin Flipper utilises a server-client model, so both your server and your client(s) must have it compiled, and have network connectivity between each other.
 
@@ -27,7 +29,23 @@ You can spectate the accumulated statistics on the server by running `./coinflip
 
 That's it! You're done! Enjoy your coin flips!
 
-License
--------
+## Running in Docker
+
+Run server:
+```bash
+docker run -p 5555:5555 -p 5556:5556 tibordp/coinflipper:latest
+```
+
+Run the flipper:
+```bash
+docker run tibordp/coinflipper:latest flipper <server>
+```
+
+Check the status:
+```bash
+docker run tibordp/coinflipper:latest status <server>
+```
+
+## License
 
 Licensed under MIT (http://opensource.org/licenses/MIT), but do try to use it only for Good&trade;.
