@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <link href="https://fonts.googleapis.com/css?family=Source+Sans+Pro|Roboto+Mono&display=swap" rel="stylesheet">
+  <style>
+    body {
+      background-color: #f4f4f4;
+      color: #222;
+      font-family: 'Source Sans Pro', sans-serif;
+    }
+
+    img {
+      width: 7vh;
+    }
+
+    section {
+      width: 50vh;
+      max-width: 100%;
+      display: block;
+      margin: auto;
+      font-size: 2vh;
+    }
+
+    p,
+    h1 {
+      text-align: center;
+    }
+
+    pre {
+      color: #eee;
+      background-color: #222;
+      padding: 20px;
+      border-radius: 10px;
+      margin: auto;
+      box-shadow: 0 0 10px gray;
+      width: fit-content;
+      max-width: 100%;
+      font-size: 1.6vh;
+      overflow: scroll;
+      font-family: 'Roboto Mono', monospace;
+    }
+
+    span.heredoc {
+      color: #cec;
+    }
+
+    pre.error {
+      color: #e66;
+    }
+  </style>
+  <title>Coin Flipper Viewer</title>
+</head>
+
+<body>
+  <pre id="status"></pre>
+  <section>
+    <h1>What is this?</h1>
+    <p>This is <a href="https://www.github.com/tibordp/coinflipper">Coin Flipper</a>, a distributed coin flipping
+      platform that pretends to be proving that Mersene Twister is
+      not a biased PRNG, but in reality it just wastes a lot of compute resources.
+    </p>
+    <p>Want to help and appear on the list above?</p>
+  </section>
+  <pre>docker run tibordp/coinflipper:latest flipper coinflipper.ojdip.net</pre>
+  <section>
+    <p>Or do you have a huge k8s cluster at your disposal?</p>
+  </section>
+  <pre>kubectl apply -f - &lt;&lt;EOF<span class="heredoc">
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: coinflipper-flipper
+spec:
+  selector:
+    matchLabels:
+      app: coinflipper-flipper
+  replicas: 1337
+  template:
+    metadata:
+      labels:
+        app: coinflipper-flipper
+    spec:
+      containers:
+      - image: tibordp/coinflipper:latest
+        imagePullPolicy: Always
+        name: coinflipper-flipper
+        command: ["/coinflipper"]
+        args: ["flipper", "coinflipper.ojdip.net"]
+</span>EOF</pre>
+  <section>
+    <p><a href="https://www.github.com/tibordp/coinflipper"><img src="/coinflipper/github.png"></a></p>
+  </section>
+  </footer>
+  <script>
+    const setStatusText = (text, className) => {
+      const statusDisplay = document.querySelector('#status');
+      const bodyNode = document.createTextNode(text);
+      statusDisplay.className = className;
+      if (statusDisplay.firstChild) {
+        statusDisplay.replaceChild(bodyNode, statusDisplay.firstChild);
+      } else {
+        statusDisplay.appendChild(bodyNode);
+      }
+    };
+    function loadStatus() {
+      fetch("/coinflipper/status.txt")
+        .then(resp => resp.text())
+        .then(body => {
+          setStatusText(body, "ok");
+          window.setTimeout(loadStatus, 2000);
+        })
+        .catch(() => {
+          setStatusText("Failed to load", "error");
+          window.setTimeout(loadStatus, 2000);
+        })
+    }
+    loadStatus();
+  </script>
+</body>

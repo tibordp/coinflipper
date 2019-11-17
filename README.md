@@ -6,6 +6,8 @@ The purpose of the project is to benchmark and verify uniformness of random numb
 
 It does so by counting occurences of coin flip streaks of any length (between 1 and 128). The client nodes generate coin flips and send their statistics to the server.
 
+[See it in action here!](https://k8s.ojdip.net/coinflipper/)
+
 ## Building from source
 
 With Docker:
@@ -54,7 +56,9 @@ Coinflipper is also Kubernetized, like any modern app ought be! You can deploy C
 kubectl apply -f kubernetes/coinflipper.yaml
 ```
 
-The server component will run as a StatefulSet with 1GiB of persistent sotrage mounted, so you will never lose your progress even if you restart the pod. 
+The server component will run as a StatefulSet with 1GiB of persistent storage mounted, so you will never lose your progress even if you restart the pod. 
+
+There is also a web prontend available, so you can watch the flipping progress without a terminal. See [here](./kubernetes/coinflipper-viewer/README.md) for deployment instructions.
 
 ## License
 
