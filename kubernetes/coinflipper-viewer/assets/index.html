@@ -42,7 +42,11 @@
     }
 
     span.heredoc {
-      color: #cec;
+      color: lightblue;
+    }
+
+    span.comment {
+      color: lightgreen
     }
 
     pre.error {
@@ -62,7 +66,10 @@
     </p>
     <p>Want to help and appear on the list above?</p>
   </section>
-  <pre>docker run tibordp/coinflipper:latest flipper coinflipper.ojdip.net</pre>
+  <pre><span class="comment"># On your PC/Mac</span>
+docker run tibordp/coinflipper:latest flipper coinflipper.ojdip.net
+<span class="comment"># On your Raspberry Pi 4</span>
+docker run tibordp/coinflipper:arm64v8 flipper coinflipper.ojdip.net</pre>
   <section>
     <p>Or do you have a huge k8s cluster at your disposal?</p>
   </section>

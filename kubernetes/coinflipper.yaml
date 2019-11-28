@@ -55,12 +55,12 @@ spec:
           name: volume
         livenessProbe:
           exec:
-            command:
-            - /coinflipper
-            - status
-            - localhost
+            command: 
+            - "/bin/sh"
+            - "-c"
+            - "test `date -d \"now - $( stat -c \"%Y\" /opt/data/status.cf ) seconds\" +%s` -lt 600"
           initialDelaySeconds: 5
-          periodSeconds: 5
+          periodSeconds: 60
   volumeClaimTemplates:
   - metadata:
       name: volume
