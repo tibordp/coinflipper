@@ -318,13 +318,12 @@ int coin_server() {
 			}
 			{
 				ofstream status("~status.cf", ios::binary);
-				cf.SerializeToOstream(&status);
-				
-				// On posix this is atomic
-				rename("~status.cf", "status.cf");
+				cf.SerializeToOstream(&status);	
 			}
+			// On posix this is atomic
+			rename("~status.cf", "status.cf");
 
-			this_thread::sleep_for(chrono::seconds(1));
+			this_thread::sleep_for(chrono::minutes(5));
 		}
 	}));
 
