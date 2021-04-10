@@ -64,7 +64,10 @@ public:
 		const int      bit_count = sizeof(decltype(rng())) * CHAR_BIT;
 		const uint32_t iter_num = 0xffff;
 
-		rng.seed(random_device()());
+		for (int i = 0; i < 64; ++i) {
+			// Overkill, but minimizing the chances of a duplicate seed
+			rng.seed(random_device()());
+		}
 
 		result_array current;
 		current.fill(0);

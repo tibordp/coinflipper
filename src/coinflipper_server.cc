@@ -38,6 +38,7 @@
 
 #include <climits>
 #include <cstdint>
+#include <cstdio>
 #include <ctime>
 
 #include "coinflipper.pb.h"
@@ -316,11 +317,14 @@ int coin_server() {
 				cf.SerializeToOstream(&status);
 			}
 			{
-				ofstream status("status.cf", ios::binary);
+				ofstream status("~status.cf", ios::binary);
 				cf.SerializeToOstream(&status);
+				
+				// On posix this is atomic
+				rename("~status.cf", "status.cf");
 			}
 
-			this_thread::sleep_for(chrono::minutes(5));
+			this_thread::sleep_for(chrono::seconds(1));
 		}
 	}));
 
