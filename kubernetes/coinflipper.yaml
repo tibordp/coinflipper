@@ -61,6 +61,10 @@ spec:
             - "test `date -d \"now - $( stat -c \"%Y\" /opt/data/status.cf ) seconds\" +%s` -lt 600"
           initialDelaySeconds: 5
           periodSeconds: 60
+        resources:
+          limits:
+            memory: "64Mi"
+            cpu: "500m"
   volumeClaimTemplates:
   - metadata:
       name: volume
@@ -90,3 +94,7 @@ spec:
         name: coinflipper-flipper
         command: ["/coinflipper"]
         args: ["flipper", "coinflipper.default"]
+        resources:
+          limits:
+            memory: "16Mi"
+            cpu: "100m"
