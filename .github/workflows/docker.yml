@@ -21,5 +21,5 @@ jobs:
       - name: Build the image
         run: |
           docker buildx build --push \
-            --tag your-username/multiarch-example:latest \
+            --tag tibordp/coinflipper:latest \
             --platform linux/amd64,linux/armhf,linux/arm64 .
