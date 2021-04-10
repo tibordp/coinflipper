@@ -117,10 +117,12 @@ class async_statistics {
 	mutex mtx;
 
 	void cleanup(time_type older_than) {
-		coin_push bound {0, older_than, 0};
-
-		for (auto it = pushes.begin(); it != pushes.upper_bound(bound); ++it) {
-				pushes.erase(it);
+		for (auto it = pushes.begin(); it != pushes.end(); ) {
+			if (it->time < older_than) {
+				it = pushes.erase(it);
+			} else {
+				break;
+			}
 		}
 	}
 
