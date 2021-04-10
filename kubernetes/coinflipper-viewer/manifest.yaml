@@ -48,8 +48,15 @@ spec:
         - name: coinflipper-viewer
           mountPath: /script/refresh.sh
           subPath: refresh.sh
-        command: ["/bin/sh"]
-        args: ["-c", "/script/refresh.sh"]
+        - name: coinflipper-viewer
+          mountPath: /script/liveness.sh
+          subPath: liveness.sh
+        command: ["/script/refresh.sh"]
+        livenessProbe:
+          exec:
+            command: ["/script/liveness.sh"]
+          initialDelaySeconds: 5
+          periodSeconds: 60
       volumes:
       - name: coinflipper-viewer
         configMap:
