@@ -22,4 +22,4 @@ jobs:
         run: |
           docker buildx build --push \
             --tag your-username/multiarch-example:latest \
-            --platform linux/amd64,linux/arm/v7,linux/arm64 .
+            --platform linux/amd64,linux/armhf,linux/arm64 .
