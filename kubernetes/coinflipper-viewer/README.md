@@ -10,7 +10,8 @@ Modify the `manifest.yaml` and any static assets to suit your needs (especially 
 
 The static assets are stored as a ConfigMap, so upload them to.
 ```
-kubectl create configmap coinflipper-viewer --from-file=assets/ -o yaml --dry-run | kubectl apply -f -
+kubectl create -n coinflipper configmap coinflipper-viewer \
+    --from-file=assets/ -o yaml --dry-run | kubectl apply -f -
 ```
 
 Then deploy the manifest

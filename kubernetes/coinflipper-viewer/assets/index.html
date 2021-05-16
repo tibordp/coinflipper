@@ -109,7 +109,7 @@ spec:
       }
     };
     function loadStatus() {
-      fetch("/coinflipper/status.txt")
+      fetch("/status.txt")
         .then(resp => resp.text())
         .then(body => {
           setStatusText(body, "ok");
