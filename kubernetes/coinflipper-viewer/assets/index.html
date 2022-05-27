@@ -3,23 +3,25 @@
 
 <head>
   <link href="https://fonts.googleapis.com/css?family=Source+Sans+Pro|Roboto+Mono&display=swap" rel="stylesheet">
+  <meta name="viewport" content="initial-scale=1.0, width=device-width">
   <style>
     body {
       background-color: #f4f4f4;
       color: #222;
+      padding-top: 1em;
+      margin: 0;
       font-family: 'Source Sans Pro', sans-serif;
     }
 
     img {
-      width: 7vh;
+      width: 10vw;
     }
 
     section {
-      width: 50vh;
-      max-width: 100%;
       display: block;
       margin: auto;
-      font-size: 2vh;
+      padding: 1em;
+      font-size: 4vw;
     }
 
     p,
@@ -30,13 +32,13 @@
     pre {
       color: #eee;
       background-color: #222;
-      padding: 20px;
+      padding: 1em;
       border-radius: 10px;
       margin: auto;
       box-shadow: 0 0 10px gray;
       width: fit-content;
-      max-width: 100%;
-      font-size: 1.6vh;
+      max-width: 90vw;
+      font-size: 3.5vw;
       overflow: auto;
       font-family: 'Roboto Mono', monospace;
     }
@@ -52,6 +54,21 @@
     pre.error {
       color: #e66;
     }
+
+    @media (min-width: 1024px) {
+      img {
+        width: 4vw;
+      }
+
+      section {
+        width: 60vw;
+        font-size: 2vw;
+      }
+
+      pre {
+            font-size: 1.5vw;
+      }
+    }
   </style>
   <title>Coin Flipper Viewer</title>
 </head>
@@ -61,13 +78,13 @@
   <section>
     <h1>What is this?</h1>
     <p>This is <a href="https://www.github.com/tibordp/coinflipper">Coin Flipper</a>, a distributed coin flipping
-      platform that pretends to be proving that Mersene Twister is
-      not a biased PRNG, but in reality it just wastes a lot of compute resources.
+      that shows how probable it is for a fair coin to land on the same side <i>n</i> times in a row.
     </p>
     <p>Want to help and appear on the list above?</p>
   </section>
   <pre><span class="comment"># On your PC/Mac or on your Raspberry Pi</span>
-docker run tibordp/coinflipper:latest flipper coinflipper.ojdip.net</pre>
+docker run tibordp/coinflipper:latest \
+   flipper coinflipper.ojdip.net</pre>
   <section>
     <p>Or do you have a huge k8s cluster at your disposal?</p>
   </section>
@@ -91,10 +108,16 @@ spec:
         imagePullPolicy: Always
         name: coinflipper-flipper
         command: ["/coinflipper"]
-        args: ["flipper", "coinflipper.ojdip.net"]
+        args:
+        - flipper
+        - coinflipper.ojdip.net
+        resources:
+          limits:
+            memory: "16Mi"
+            cpu: "1000m"                  
 </span>EOF</pre>
   <section>
-    <p><a href="https://www.github.com/tibordp/coinflipper"><img src="/coinflipper/github.png"></a></p>
+    <p><a href="https://www.github.com/tibordp/coinflipper"><img src="./github.png"></a></p>
   </section>
   </footer>
   <script>

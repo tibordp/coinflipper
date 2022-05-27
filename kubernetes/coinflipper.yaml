@@ -3,9 +3,12 @@ kind: Service
 metadata:
   name: coinflipper
   namespace: coinflipper
+  annotations:
+    load-balancer.hetzner.cloud/location: nbg1
+    load-balancer.hetzner.cloud/hostname: "coinflipper.ojdip.net"
 spec:
   type: LoadBalancer
-  ipFamilyPolicy: RequireDualStack
+  ipFamilyPolicy: PreferDualStack
   ports:
   - port: 5555
     targetPort: 5555
@@ -86,7 +89,7 @@ spec:
   selector:
     matchLabels:
       app: coinflipper-flipper
-  replicas: 2
+  replicas: 3
   template:
     metadata:
       labels:
@@ -101,4 +104,4 @@ spec:
         resources:
           limits:
             memory: "16Mi"
-            cpu: "100m"
+            cpu: "600m"
