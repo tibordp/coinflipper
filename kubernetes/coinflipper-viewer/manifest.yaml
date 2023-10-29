@@ -3,11 +3,13 @@ kind: Service
 metadata:
   name: coinflipper-viewer
   namespace: coinflipper
+  labels:
+    app: coinflipper-viewer
 spec:
   ipFamilyPolicy: PreferDualStack
   ports:
-  - port: 80
-    targetPort: 80
+  - name: http
+    port: 80
     protocol: TCP
   selector:
     app: coinflipper-viewer
@@ -26,7 +28,7 @@ spec:
     metadata:
       labels:
         app: coinflipper-viewer
-    spec:  
+    spec:
       containers:
       - name: nginx-container
         image: nginx
@@ -82,24 +84,43 @@ spec:
       - name: shared-data
         emptyDir: {}
 ---
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: coinflipper-viewer
   namespace: coinflipper
   annotations:
-    kubernetes.io/ingress.class: "nginx"    
+    kubernetes.io/ingress.class: "nginx"
     cert-manager.io/cluster-issuer: "letsencrypt-prod"
 spec:
   tls:
-  - hosts:
-    - coinflipper.k8s.ojdip.net
-    secretName: coinflipper-k8s-tls
+    - hosts:
+        - coinflipper.k8s.ojdip.net
+      secretName: coinflipper-k8s-tls
   rules:
-  - host: coinflipper.k8s.ojdip.net
-    http:
-      paths:
-      - path: /
-        backend:
-          serviceName: coinflipper-viewer
-          servicePort: 80
+    - host: coinflipper.k8s.ojdip.net
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: coinflipper-viewer
+                port:
+                  number: 80
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: coinflipper-viewer
+  namespace: coinflipper
+  labels:
+    app: coinflipper-viewer
+spec:
+  selector:
+    matchLabels:
+      app: coinflipper-viewer
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: 10s
