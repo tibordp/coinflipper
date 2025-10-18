@@ -122,5 +122,5 @@ spec:
       app: coinflipper-viewer
   endpoints:
   - port: http
-    path: /metrics
+    path: /metrics.txt
     interval: 10s

@@ -8,7 +8,7 @@ while true; do
     connected_clients=$(grep -E " cps$" /pod-data/~status.txt | wc -l)
 
     if [[ -z "$total_flips" ]]; then
-       rm /pod-data/metrics
+       rm /pod-data/metrics.txt
     else
         echo '# HELP coinflipper_total_flips Total number of coins flipped' > /pod-data/~metrics.txt
         echo '# TYPE coinflipper_total_flips counter' >> /pod-data/~metrics.txt
@@ -18,7 +18,7 @@ while true; do
         echo '# TYPE coinflipper_connected_clients gauge' >> /pod-data/~metrics.txt
         echo "coinflipper_connected_clients $connected_clients" >> /pod-data/~metrics.txt
 
-        mv /pod-data/~metrics.txt /pod-data/metrics
+        mv /pod-data/~metrics.txt /pod-data/metrics.txt
     fi
 
     mv /pod-data/~status.txt /pod-data/status.txt
