@@ -15,9 +15,9 @@ With Docker:
 docker build -t coinflipper .
 ```
 
-Building without Docker requires an implementation of Google's Protocol Buffers compiler (protobuf), ZeroMQ, GNU Make, a C++11-able C++ compiler (e.g. GCC >=4.7.0, Clang), and a sensible build environment.
+Building without Docker requires an implementation of Google's Protocol Buffers compiler (protobuf), ZeroMQ, CLI11, GNU Make, a C++11-able C++ compiler (e.g. GCC >=4.7.0, Clang), and a sensible build environment.
 
-Run `make protobuf`, then `make`. It's that easy!
+Run `make`. It's that easy! (Protocol buffers are generated automatically during build)
 
 ## Usage
 
@@ -25,7 +25,7 @@ Coin Flipper utilises a server-client model, so both your server and your client
 
 What you should first set up is the server. Run `./coinflipper server` on the desired server machine. The server will attempt to load the state from `state.cf` file, if it exists. It will also periodically save the state to the same file as well as timestamped dumps in the `history/` directory.
 
-The next thing you want to do is run `./coinflipper flipper <server address>` on each of the client nodes you wish to configure (the more the merrier!).
+The next thing you want to do is run `./coinflipper flipper <server address>` on each of the client nodes you wish to configure (the more the merrier!). You can optionally specify the number of worker threads with `-j <threads>` (defaults to number of CPU cores).
 
 You can spectate the accumulated statistics on the server by running `./coinflipper status <server address>` from any machine that has network connectivity to the server.
 
@@ -50,15 +50,30 @@ docker run tibordp/coinflipper:latest status <server>
 
 ## Running on Kubernetes
 
-Coinflipper is also Kubernetized, like any modern app ought be! You can deploy Coinflipper server and 2 workers on a cluster of your choice by 
+Coinflipper is also Kubernetized, like any modern app ought be! You can deploy Coinflipper server and 2 workers on a cluster of your choice by
 
 ```
 kubectl apply -f kubernetes/coinflipper.yaml
 ```
 
-The server component will run as a StatefulSet with 1GiB of persistent storage mounted, so you will never lose your progress even if you restart the pod. 
+The server component will run as a StatefulSet with 1GiB of persistent storage mounted, so you will never lose your progress even if you restart the pod.
 
-There is also a web prontend available, so you can watch the flipping progress without a terminal. See [here](./kubernetes/coinflipper-viewer/README.md) for deployment instructions.
+There is also a web frontend available, so you can watch the flipping progress without a terminal. See [here](./kubernetes/coinflipper-viewer/README.md) for deployment instructions.
+
+## Development
+
+The project uses clang-format for code formatting. To install pre-commit hooks:
+
+```bash
+pip install pre-commit
+pre-commit install
+```
+
+This will automatically format code on commit. You can also run formatting manually:
+
+```bash
+clang-format -i src/*.cc src/*.h
+```
 
 ## License
 

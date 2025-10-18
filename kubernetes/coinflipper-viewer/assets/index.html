@@ -5,23 +5,35 @@
   <link href="https://fonts.googleapis.com/css?family=Source+Sans+Pro|Roboto+Mono&display=swap" rel="stylesheet">
   <meta name="viewport" content="initial-scale=1.0, width=device-width">
   <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      font-size: 16px;
+    }
+
     body {
       background-color: #f4f4f4;
       color: #222;
-      padding-top: 1em;
+      padding: 1.5rem 1rem;
       margin: 0;
       font-family: 'Source Sans Pro', sans-serif;
+      font-size: 1rem;
+      line-height: 1.6;
     }
 
     img {
-      width: 10vw;
+      width: 80px;
+      height: auto;
+      display: block;
     }
 
     section {
       display: block;
-      margin: auto;
-      padding: 1em;
-      font-size: 4vw;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 1rem;
     }
 
     p,
@@ -29,18 +41,38 @@
       text-align: center;
     }
 
+    h1 {
+      font-size: 1.75rem;
+      margin: 1rem 0;
+    }
+
+    p {
+      font-size: 1rem;
+      margin: 0.75rem 0;
+    }
+
+    a {
+      color: #0066cc;
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
     pre {
       color: #eee;
       background-color: #222;
-      padding: 1em;
+      padding: 1rem;
       border-radius: 10px;
-      margin: auto;
-      box-shadow: 0 0 10px gray;
+      margin: 1.5rem auto;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
       width: fit-content;
-      max-width: 90vw;
-      font-size: 3.5vw;
-      overflow: auto;
+      max-width: calc(100vw - 2rem);
+      font-size: 0.875rem;
+      overflow-x: auto;
       font-family: 'Roboto Mono', monospace;
+      line-height: 1.5;
     }
 
     span.heredoc {
@@ -48,25 +80,81 @@
     }
 
     span.comment {
-      color: lightgreen
+      color: lightgreen;
     }
 
     pre.error {
       color: #e66;
     }
 
-    @media (min-width: 1024px) {
-      img {
-        width: 4vw;
+    /* Tablet breakpoint */
+    @media (min-width: 600px) {
+      html {
+        font-size: 17px;
       }
 
-      section {
-        width: 60vw;
-        font-size: 2vw;
+      body {
+        padding: 2rem 1.5rem;
+      }
+
+      h1 {
+        font-size: 2rem;
+      }
+
+      p {
+        font-size: 1.0625rem;
       }
 
       pre {
-            font-size: 1.5vw;
+        font-size: 0.9375rem;
+        padding: 1.25rem;
+      }
+
+      img {
+        width: 100px;
+      }
+    }
+
+    /* Desktop breakpoint */
+    @media (min-width: 1024px) {
+      html {
+        font-size: 18px;
+      }
+
+      body {
+        padding: 2.5rem 2rem;
+      }
+
+      section {
+        padding: 1.5rem;
+      }
+
+      h1 {
+        font-size: 2.5rem;
+      }
+
+      p {
+        font-size: 1.125rem;
+      }
+
+      pre {
+        font-size: 1rem;
+        padding: 1.5rem;
+      }
+
+      img {
+        width: 120px;
+      }
+    }
+
+    /* Large desktop - cap the font scaling */
+    @media (min-width: 1920px) {
+      html {
+        font-size: 20px;
+      }
+
+      section {
+        max-width: 900px;
       }
     }
   </style>
@@ -114,7 +202,7 @@ spec:
         resources:
           limits:
             memory: "16Mi"
-            cpu: "1000m"                  
+            cpu: "1000m"
 </span>EOF</pre>
   <section>
     <p><a href="https://www.github.com/tibordp/coinflipper"><img src="./github.png"></a></p>

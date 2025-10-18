@@ -9,20 +9,21 @@ SRC_PATH = ./src
 COMPILE_FLAGS = -std=c++11 -Wall -Wextra -g
 # Protocol Buffer compiler
 PROTOBUF_COMPILER = protoc
-# Protocol Buffer flags
-PROTOBUF_FLAGS = --proto_path=$(SRC_PATH) --cpp_out=$(SRC_PATH)
+# Protocol Buffer flags (output to build directory)
+PROTOBUF_FLAGS = --proto_path=$(SRC_PATH) --cpp_out=$(BUILD_PATH)
 # Additional release-specific flags
 RCOMPILE_FLAGS = -D NDEBUG -O3
 # Additional debug-specific flags
 DCOMPILE_FLAGS = -D DEBUG -Wpedantic
 # Add additional include paths
-INCLUDES = -I $(SRC_PATH)/
+# Note: BUILD_PATH is added dynamically in the release/debug targets
+INCLUDES = -I $(SRC_PATH)/ -I $(BUILD_PATH)/
 # General linker settings
 LINK_FLAGS = -lzmq -lprotobuf -lpthread
 # Additional release-specific linker settings
-RLINK_FLAGS = 
+RLINK_FLAGS =
 # Additional debug-specific linker settings
-DLINK_FLAGS = 
+DLINK_FLAGS =
 # Destination directory, like a jail or mounted system
 DESTDIR = /
 # Install path (bin/ is appended automatically)
@@ -45,7 +46,7 @@ INSTALL_DATA = $(INSTALL) -m 644
 export V = false
 export CMD_PREFIX = @
 ifeq ($(V),true)
-	CMD_PREFIX = 
+	CMD_PREFIX =
 endif
 
 # Combine compiler and linker flags
@@ -61,13 +62,22 @@ debug: export BUILD_PATH := build/debug
 debug: export BIN_PATH := bin/debug
 install: export BIN_PATH := bin/release
 
+# Find all proto files in the source directory
+PROTO_SOURCES = $(shell find $(SRC_PATH)/ -name '*.proto')
+# Generated protobuf files (in build directory)
+PROTO_GEN_CC = $(patsubst $(SRC_PATH)/%.proto,$(BUILD_PATH)/%.pb.cc,$(PROTO_SOURCES))
+PROTO_GEN_H = $(patsubst $(SRC_PATH)/%.proto,$(BUILD_PATH)/%.pb.h,$(PROTO_SOURCES))
+
 # Find all source files in the source directory
 SOURCES = $(shell find $(SRC_PATH)/ -name '*.$(SRC_EXT)')
 # Set the object file names, with the source directory stripped
 # from the path, and the build path prepended in its place
 OBJECTS = $(SOURCES:$(SRC_PATH)/%.$(SRC_EXT)=$(BUILD_PATH)/%.o)
+# Add object files for generated protobuf sources
+PROTO_OBJECTS = $(PROTO_GEN_CC:.cc=.o)
+ALL_OBJECTS = $(OBJECTS) $(PROTO_OBJECTS)
 # Set the dependency files that will be used to add header dependencies
-DEPS = $(OBJECTS:.o=.d)
+DEPS = $(ALL_OBJECTS:.o=.d)
 
 # Macros for timing compilation
 TIME_FILE = $(dir $@).$(notdir $@)_time
@@ -75,11 +85,11 @@ START_TIME = date '+%s' > $(TIME_FILE)
 END_TIME = read st < $(TIME_FILE) ; \
 	$(RM) $(TIME_FILE) ; \
 	st=$$((`date '+%s'` - $$st - 86400)) ; \
-	echo `date -u -d @$$st '+%H:%M:%S'` 
+	echo `date -u -d @$$st '+%H:%M:%S'`
 
 # Standard, non-optimized release build
 .PHONY: release
-release: dirs
+release: dirs protobuf
 	@echo "Beginning release build"
 	@$(START_TIME)
 	@$(MAKE) all --no-print-directory
@@ -88,7 +98,7 @@ release: dirs
 
 # Debug build for gdb debugging
 .PHONY: debug
-debug: dirs
+debug: dirs protobuf
 	@echo "Beginning debug build"
 	@$(START_TIME)
 	@$(MAKE) all --no-print-directory
@@ -115,17 +125,21 @@ uninstall:
 	@echo "Removing $(DESTDIR)$(INSTALL_PREFIX)/bin/$(BIN_NAME)"
 	@$(RM) $(DESTDIR)$(INSTALL_PREFIX)/bin/$(BIN_NAME)
 
+# Rule to generate protobuf files from .proto sources
 .PHONY: protobuf
-protobuf:
-	@$(PROTOBUF_COMPILER) $(PROTOBUF_FLAGS) $(SRC_PATH)/*.proto	
+protobuf: $(PROTO_GEN_CC) $(PROTO_GEN_H)
+
+# Pattern rule for generating protobuf C++ files
+$(BUILD_PATH)/%.pb.cc $(BUILD_PATH)/%.pb.h: $(SRC_PATH)/%.proto | $(BUILD_PATH)
+	@echo "Generating protobuf: $< -> $(BUILD_PATH)"
+	@$(PROTOBUF_COMPILER) $(PROTOBUF_FLAGS) $<
 
 # Removes all build files
 .PHONY: clean
 clean:
 	@echo "Deleting $(BIN_NAME) symlink"
 	@$(RM) $(BIN_NAME)
-	@$(RM) *.pb.cc *.pb.h
-	@echo "Deleting directories"
+	@echo "Deleting directories (includes generated protobuf files)"
 	@$(RM) -r build
 	@$(RM) -r bin
 
@@ -136,10 +150,10 @@ all: $(BIN_PATH)/$(BIN_NAME)
 	@ln -s $(BIN_PATH)/$(BIN_NAME) $(BIN_NAME)
 
 # Link the executable
-$(BIN_PATH)/$(BIN_NAME): $(OBJECTS)
+$(BIN_PATH)/$(BIN_NAME): $(ALL_OBJECTS)
 	@echo "Linking: $@"
 	@$(START_TIME)
-	$(CMD_PREFIX)$(CXX) $(OBJECTS) $(LDFLAGS) -o $@
+	$(CMD_PREFIX)$(CXX) $(ALL_OBJECTS) $(LDFLAGS) -o $@
 	@echo -en "\t Link time: "
 	@$(END_TIME)
 
@@ -156,4 +170,10 @@ $(BUILD_PATH)/%.o: $(SRC_PATH)/%.$(SRC_EXT)
 	@echo -en "\t Compile time: "
 	@$(END_TIME)
 
-
+# Compile generated protobuf sources
+$(BUILD_PATH)/%.pb.o: $(BUILD_PATH)/%.pb.cc $(BUILD_PATH)/%.pb.h
+	@echo "Compiling protobuf: $< -> $@"
+	@$(START_TIME)
+	$(CMD_PREFIX)$(CXX) $(CXXFLAGS) $(INCLUDES) -MP -MMD -c $< -o $@
+	@echo -en "\t Compile time: "
+	@$(END_TIME)
