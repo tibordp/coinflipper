@@ -4,4 +4,6 @@ build/
 bin/
 coinflipper
 history/
-status.cf
+.git/
+*.o
+*.d
