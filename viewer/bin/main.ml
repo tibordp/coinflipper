@@ -51,6 +51,14 @@ let handle_static ~path ~content_type =
     respond_string ~status:`Not_found ~content_type:"text/plain"
       ~body:"Not found\n" ()
 
+let create_dual_stack_socket port =
+  let fd = Lwt_unix.socket Unix.PF_INET6 Unix.SOCK_STREAM 0 in
+  Lwt_unix.setsockopt fd Unix.SO_REUSEADDR true;
+  Lwt_unix.setsockopt fd Unix.IPV6_ONLY false;
+  let* () = Lwt_unix.bind fd (Unix.ADDR_INET (Unix.inet6_addr_any, port)) in
+  Lwt_unix.listen fd 128;
+  Lwt.return fd
+
 let server ~grpc_address ~port =
   let callback _conn req _body =
     let uri = Cohttp.Request.uri req in
@@ -67,10 +75,11 @@ let server ~grpc_address ~port =
         ~body:"Not found\n" ()
   in
   let server_fn = Cohttp_lwt_unix.Server.make ~callback () in
-  Printf.printf "Viewer listening on port %d, gRPC target: %s:%d\n%!" port
+  Printf.printf "Viewer listening on port %d (IPv4+IPv6), gRPC target: %s:%d\n%!" port
     grpc_address grpc_port;
+  let* fd = create_dual_stack_socket port in
   Cohttp_lwt_unix.Server.create
-    ~mode:(`TCP (`Port port))
+    ~mode:(`TCP (`Socket fd))
     server_fn
 
 let () =
