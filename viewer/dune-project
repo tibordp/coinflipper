@@ -1,0 +1,19 @@
+(lang dune 3.16)
+
+(name viewer)
+
+(generate_opam_files true)
+
+(package
+ (name viewer)
+ (allow_empty)
+ (depends
+  (ocaml (>= 5.2))
+  (dune (>= 3.16))
+  ocaml-protoc-plugin
+  grpc
+  grpc-lwt
+  h2-lwt-unix
+  cohttp-lwt-unix
+  lwt
+  conduit-lwt-unix))

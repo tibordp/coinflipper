@@ -6,7 +6,7 @@ The purpose of the project is to benchmark and verify uniformness of random numb
 
 It does so by counting occurences of coin flip streaks of any length (between 1 and 128). The client nodes generate coin flips and send their statistics to the server.
 
-[See it in action here!](https://k8s.ojdip.net/coinflipper/)
+[See it in action here!](https://coinflipper.k8s.ojdip.net/)
 
 ## Building from source
 
@@ -15,9 +15,15 @@ With Docker:
 docker build -t coinflipper .
 ```
 
-Building without Docker requires an implementation of Google's Protocol Buffers compiler (protobuf), ZeroMQ, CLI11, GNU Make, a C++11-able C++ compiler (e.g. GCC >=4.7.0, Clang), and a sensible build environment.
+Building without Docker requires Rust (1.85+) and protobuf compiler. The Docker image also includes an OCaml-based web viewer (because why not), which requires OCaml 5.2, opam, and dune.
 
-Run `make`. It's that easy! (Protocol buffers are generated automatically during build)
+```bash
+# Build the Rust binary
+cargo build --release
+
+# Build the OCaml viewer (optional)
+cd viewer && make deps && make build
+```
 
 ## Usage
 
@@ -35,45 +41,40 @@ That's it! You're done! Enjoy your coin flips!
 
 Run server:
 ```bash
-docker run -p 5555:5555 -p 5556:5556 tibordp/coinflipper:latest
+docker run -p 50051:50051 tibordp/coinflipper:latest
 ```
 
 Run the flipper:
 ```bash
-docker run tibordp/coinflipper:latest flipper <server>
+docker run tibordp/coinflipper:latest /coinflipper flipper <server>
 ```
 
 Check the status:
 ```bash
-docker run tibordp/coinflipper:latest status <server>
+docker run tibordp/coinflipper:latest /coinflipper status <server>
+```
+
+Run the web viewer:
+```bash
+docker run -p 8080:8080 tibordp/coinflipper:latest /viewer <server>
 ```
 
 ## Running on Kubernetes
 
-Coinflipper is also Kubernetized, like any modern app ought be! You can deploy Coinflipper server and 2 workers on a cluster of your choice by
+Coinflipper is also Kubernetized, like any modern app ought be! You can deploy the Coinflipper server, 3 workers, and the web viewer on a cluster of your choice by
 
 ```
 kubectl apply -f kubernetes/coinflipper.yaml
 ```
 
-The server component will run as a StatefulSet with 1GiB of persistent storage mounted, so you will never lose your progress even if you restart the pod.
+The server component will run as a StatefulSet with 1GiB of persistent storage mounted, so you will never lose your progress even if you restart the pod. The viewer is a standalone OCaml HTTP gateway that speaks gRPC to the server and serves a web UI — because a Rube Goldberg nginx-sidecar-shell-loop setup was getting too sane.
 
-There is also a web frontend available, so you can watch the flipping progress without a terminal. See [here](./kubernetes/coinflipper-viewer/README.md) for deployment instructions.
+## Architecture
 
-## Development
+The Docker image ships two binaries:
 
-The project uses clang-format for code formatting. To install pre-commit hooks:
-
-```bash
-pip install pre-commit
-pre-commit install
-```
-
-This will automatically format code on commit. You can also run formatting manually:
-
-```bash
-clang-format -i src/*.cc src/*.h
-```
+- **`/coinflipper`** (Rust) — the server, flipper, and status CLI
+- **`/viewer`** (OCaml) — HTTP gateway that calls GetStatus over gRPC and serves a web UI with live stats, plus a Prometheus `/metrics` endpoint
 
 ## License
 

@@ -1,0 +1,10 @@
+(executable
+ (name main)
+ (public_name viewer)
+ (libraries
+  viewer_lib
+  coinflipper_proto
+  cohttp-lwt-unix
+  conduit-lwt-unix
+  lwt
+  lwt.unix))

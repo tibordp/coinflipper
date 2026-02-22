@@ -1,0 +1,10 @@
+(rule
+ (targets coinflipper.ml)
+ (deps (:proto coinflipper.proto))
+ (action (run protoc -I . --ocaml_out=. %{proto})))
+
+(library
+ (name coinflipper_proto)
+ (wrapped false)
+ (libraries ocaml-protoc-plugin)
+ (modules coinflipper))

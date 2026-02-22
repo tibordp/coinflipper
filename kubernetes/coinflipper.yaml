@@ -10,17 +10,14 @@ spec:
   type: LoadBalancer
   ipFamilyPolicy: PreferDualStack
   ports:
-  - port: 5555
-    targetPort: 5555
+  - port: 50051
+    targetPort: 50051
     protocol: TCP
-    name: status-port
-  - port: 5556
-    targetPort: 5556
-    protocol: TCP
-    name: receive-port
+    name: grpc
   selector:
     app: coinflipper
 ---
+# Local filesystem variant (default)
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -49,10 +46,8 @@ spec:
         imagePullPolicy: Always
         name: coinflipper
         ports:
-        - containerPort: 5555
-          name: status-port
-        - containerPort: 5556
-          name: receive-port
+        - containerPort: 50051
+          name: grpc
         workingDir: /opt/data
         command: ["/coinflipper"]
         args: ["server"]
@@ -79,6 +74,53 @@ spec:
       resources:
         requests:
           storage: 1Gi
+# ---
+# # S3 variant — uncomment this block and comment out the StatefulSet above.
+# # Note: The file-age liveness probe does not work with S3 storage.
+# # Consider using a gRPC health check or removing the probe entirely.
+# apiVersion: apps/v1
+# kind: Deployment
+# metadata:
+#   name: coinflipper
+#   namespace: coinflipper
+# spec:
+#   selector:
+#     matchLabels:
+#       app: coinflipper
+#   replicas: 1
+#   template:
+#     metadata:
+#       labels:
+#         app: coinflipper
+#     spec:
+#       containers:
+#       - image: tibordp/coinflipper:latest
+#         imagePullPolicy: Always
+#         name: coinflipper
+#         ports:
+#         - containerPort: 50051
+#           name: grpc
+#         command: ["/coinflipper"]
+#         args: ["server", "--s3-bucket", "my-bucket", "--s3-prefix", "coinflipper/"]
+#         env:
+#         - name: AWS_REGION
+#           value: "us-east-1"
+#         # Credentials can come from env vars, a mounted secret, or an IAM role
+#         # for service accounts (IRSA). Example with env vars:
+#         # - name: AWS_ACCESS_KEY_ID
+#         #   valueFrom:
+#         #     secretKeyRef:
+#         #       name: aws-credentials
+#         #       key: access-key-id
+#         # - name: AWS_SECRET_ACCESS_KEY
+#         #   valueFrom:
+#         #     secretKeyRef:
+#         #       name: aws-credentials
+#         #       key: secret-access-key
+#         resources:
+#           limits:
+#             memory: "64Mi"
+#             cpu: "500m"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -105,3 +147,99 @@ spec:
           limits:
             memory: "16Mi"
             cpu: "600m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: coinflipper-viewer
+  namespace: coinflipper
+  labels:
+    app: coinflipper-viewer
+spec:
+  ipFamilyPolicy: PreferDualStack
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8080
+    protocol: TCP
+  selector:
+    app: coinflipper-viewer
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: coinflipper-viewer
+  namespace: coinflipper
+spec:
+  selector:
+    matchLabels:
+      app: coinflipper-viewer
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: coinflipper-viewer
+    spec:
+      containers:
+      - name: viewer
+        image: tibordp/coinflipper:latest
+        imagePullPolicy: Always
+        command: ["/viewer"]
+        args: ["coinflipper.coinflipper.svc.cluster.local"]
+        ports:
+        - containerPort: 8080
+          name: http
+        livenessProbe:
+          httpGet:
+            path: /status.txt
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 30
+        resources:
+          requests:
+            memory: "32Mi"
+            cpu: "50m"
+          limits:
+            memory: "64Mi"
+            cpu: "100m"
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: coinflipper-viewer
+  namespace: coinflipper
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  tls:
+    - hosts:
+        - coinflipper.k8s.ojdip.net
+      secretName: coinflipper-k8s-tls
+  rules:
+    - host: coinflipper.k8s.ojdip.net
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: coinflipper-viewer
+                port:
+                  number: 80
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: coinflipper-viewer
+  namespace: coinflipper
+  labels:
+    app: coinflipper-viewer
+spec:
+  selector:
+    matchLabels:
+      app: coinflipper-viewer
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: 10s

@@ -24,3 +24,12 @@ message coinstatus {
 	double flips_per_second = 4;
 	repeated coinstats stats = 5;
 }
+
+// gRPC services
+service CoinFlipper {
+  rpc SubmitBatch(coinbatch) returns (SubmitResponse);
+  rpc GetStatus(StatusRequest) returns (coinstatus);
+}
+
+message SubmitResponse {}
+message StatusRequest {}

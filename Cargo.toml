@@ -1,0 +1,24 @@
+[package]
+name = "coinflipper"
+version = "1.0.0"
+edition = "2021"
+
+[[bin]]
+name = "coinflipper"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+num-format = "0.4"
+prost = "0.13"
+rand = "0.8"
+rand_isaac = "0.3"
+tokio = { version = "1", features = ["full"] }
+time = { version = "0.3", features = ["formatting"] }
+tonic = "0.12"
+async-trait = "0.1"
+aws-sdk-s3 = "1"
+aws-config = "1"
+
+[build-dependencies]
+tonic-build = "0.12"

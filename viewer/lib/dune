@@ -1,0 +1,10 @@
+(library
+ (name viewer_lib)
+ (libraries
+  coinflipper_proto
+  ocaml-protoc-plugin
+  grpc
+  grpc-lwt
+  h2-lwt-unix
+  lwt
+  lwt.unix))

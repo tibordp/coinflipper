@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package coinflipper;
+
+message coinflip {
+	uint32 position = 1;
+	uint64 flips = 2;
+}
+
+message coinbatch {
+	int64 hash = 1;
+	repeated coinflip flips = 2;
+	int64 total_flips = 3;
+}
+
+message coinstats {
+	int64 hash = 1;
+	int64 flips_per_second = 2;
+}
+
+message coinstatus {
+	repeated coinflip flips = 2;
+	int64 total_flips = 3;
+	double flips_per_second = 4;
+	repeated coinstats stats = 5;
+}
+
+// gRPC services
+service CoinFlipper {
+  rpc SubmitBatch(coinbatch) returns (SubmitResponse);
+  rpc GetStatus(StatusRequest) returns (coinstatus);
+}
+
+message SubmitResponse {}
+message StatusRequest {}

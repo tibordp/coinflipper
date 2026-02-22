@@ -1,7 +1,4 @@
-*.pb.cc
-*.pb.h
-build/
-bin/
-coinflipper
+target/
 history/
 status.cf
+viewer/_build/
