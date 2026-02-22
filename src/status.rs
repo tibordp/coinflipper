@@ -120,7 +120,7 @@ fn coin_print_status(cf: &pb::Coinstatus) {
 pub async fn coin_status(
     server_address: String,
     export: bool,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), anyhow::Error> {
     let endpoint = format!("http://{}:50051", server_address);
     let mut client = CoinFlipperClient::connect(endpoint).await?;
 

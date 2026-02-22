@@ -108,7 +108,7 @@ async fn send_batches(
 pub async fn coin_flipper(
     server_address: String,
     thread_count: usize,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), anyhow::Error> {
     let results = Arc::new(AsyncResults::new());
     let hash = rand::random::<i64>();
 

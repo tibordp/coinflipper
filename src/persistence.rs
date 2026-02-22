@@ -4,10 +4,10 @@ use tokio::fs;
 
 #[async_trait::async_trait]
 pub trait PersistenceBackend: Send + Sync + 'static {
-    async fn load(&self) -> Option<Vec<u8>>;
-    async fn save(&self, data: &[u8]) -> Result<(), Box<dyn std::error::Error>>;
+    async fn load(&self) -> Result<Option<Vec<u8>>, anyhow::Error>;
+    async fn save(&self, data: &[u8]) -> Result<(), anyhow::Error>;
     async fn save_snapshot(&self, timestamp: &str, data: &[u8])
-        -> Result<(), Box<dyn std::error::Error>>;
+        -> Result<(), anyhow::Error>;
 }
 
 pub struct FilesystemBackend {
@@ -22,11 +22,15 @@ impl FilesystemBackend {
 
 #[async_trait::async_trait]
 impl PersistenceBackend for FilesystemBackend {
-    async fn load(&self) -> Option<Vec<u8>> {
-        fs::read(self.dir.join("status.cf")).await.ok()
+    async fn load(&self) -> Result<Option<Vec<u8>>, anyhow::Error> {
+        match fs::read(self.dir.join("status.cf")).await {
+            Ok(data) => Ok(Some(data)),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(e) => Err(e.into()),
+        }
     }
 
-    async fn save(&self, data: &[u8]) -> Result<(), Box<dyn std::error::Error>> {
+    async fn save(&self, data: &[u8]) -> Result<(), anyhow::Error> {
         let tmp_path = self.dir.join("~status.cf");
         let final_path = self.dir.join("status.cf");
         fs::write(&tmp_path, data).await?;
@@ -38,7 +42,7 @@ impl PersistenceBackend for FilesystemBackend {
         &self,
         timestamp: &str,
         data: &[u8],
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    ) -> Result<(), anyhow::Error> {
         let history_dir = self.dir.join("history");
         if !history_dir.exists() {
             let _ = fs::create_dir_all(&history_dir).await;
@@ -73,20 +77,32 @@ impl S3Backend {
 
 #[async_trait::async_trait]
 impl PersistenceBackend for S3Backend {
-    async fn load(&self) -> Option<Vec<u8>> {
+    async fn load(&self) -> Result<Option<Vec<u8>>, anyhow::Error> {
         let result = self
             .client
             .get_object()
             .bucket(&self.bucket)
             .key(self.key("status.cf"))
             .send()
-            .await
-            .ok()?;
+            .await;
 
-        result.body.collect().await.ok().map(|b| b.to_vec())
+        match result {
+            Ok(output) => {
+                let data = output.body.collect().await?.to_vec();
+                Ok(Some(data))
+            }
+            Err(sdk_err)
+                if sdk_err
+                    .as_service_error()
+                    .map_or(false, |e| e.is_no_such_key()) =>
+            {
+                Ok(None)
+            }
+            Err(e) => Err(e.into()),
+        }
     }
 
-    async fn save(&self, data: &[u8]) -> Result<(), Box<dyn std::error::Error>> {
+    async fn save(&self, data: &[u8]) -> Result<(), anyhow::Error> {
         self.client
             .put_object()
             .bucket(&self.bucket)
@@ -101,7 +117,7 @@ impl PersistenceBackend for S3Backend {
         &self,
         timestamp: &str,
         data: &[u8],
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    ) -> Result<(), anyhow::Error> {
         let key = self.key(&format!("history/status_{}.cf", timestamp));
         self.client
             .put_object()

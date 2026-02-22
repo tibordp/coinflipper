@@ -70,17 +70,16 @@ fn encode_status(results: &Arc<AsyncResults>) -> Vec<u8> {
 
 pub async fn coin_server(
     backend: Box<dyn PersistenceBackend>,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), anyhow::Error> {
     let results = Arc::new(AsyncResults::new());
     let stats = Arc::new(AsyncStatistics::new(Duration::from_secs(10)));
 
     // Load previous state
-    if let Some(data) = backend.load().await {
-        if let Ok(status) = pb::Coinstatus::decode(&data[..]) {
-            let arr = result_array_from_pb(&status.flips);
-            eprintln!("Loaded previous state ({} total flips)", status.total_flips);
-            results.push(&arr, status.total_flips as u64);
-        }
+    if let Some(data) = backend.load().await? {
+        let status = pb::Coinstatus::decode(&data[..])?;
+        let arr = result_array_from_pb(&status.flips);
+        eprintln!("Loaded previous state ({} total flips)", status.total_flips);
+        results.push(&arr, status.total_flips as u64);
     }
 
     // Persistence task
@@ -120,7 +119,11 @@ pub async fn coin_server(
         stats,
     };
 
+    let (mut health_reporter, health_service) = tonic_health::server::health_reporter();
+    health_reporter.set_serving::<CoinFlipperServer<CoinFlipperService>>().await;
+
     tonic::transport::Server::builder()
+        .add_service(health_service)
         .add_service(CoinFlipperServer::new(service))
         .serve(addr)
         .await?;
